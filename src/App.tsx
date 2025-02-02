@@ -1,9 +1,14 @@
-import { useRef, useState } from 'react'
-import './App.css'
-import { createStartMatrix } from './utils/functions/createStartMatrix'
-import { QRMask } from './types/QRTypes'
-import { QR_INFORMATION } from './utils/constants/QR_INFORMATION'
-import { TYPE_INFORMATION_DICTIONARY } from './utils/constants/TYPE_INFORMATION_DICTIONARY'
+import { useRef, useState } from "react"
+import "./App.css"
+import { createStartMatrix } from "./utils/functions/createStartMatrix"
+import { QRErrorCorrectionKey, QRMask, QRVersion } from "./types/QRTypes"
+import { QR_INFORMATION } from "./utils/constants/QR_INFORMATION"
+import { TYPE_INFORMATION_DICTIONARY } from "./utils/constants/TYPE_INFORMATION_DICTIONARY"
+import { applyPattern } from "./utils/functions/applyPattern"
+import { stringToBinary } from "./utils/functions/stringToBinary"
+import { generateCorrectionErrorData } from "./utils/functions/generateCorrectionErrorData"
+import { COMPLETE_BYTES } from "./utils/constants/COMPLETE_BYTES"
+import { getQRVersion } from "./utils/functions/getQRVersion"
 
 const COLORS: Record<number, string> = {
   0: "white",
@@ -14,109 +19,99 @@ const COLORS: Record<number, string> = {
   5: "black"
 }
 
-// If function returns true, the cell will be inverted
-const MASKS: Record<string, (i: number, j: number) => boolean> = {
-  "000": (row, column) => (row + column) % 2 === 0,
-  "001": (row) => row % 2 === 0,
-  "010": (_, column) => column % 3 === 0,
-  "011": (row, column) => (row + column) % 3 === 0,
-  "100": (row, column) => (Math.floor(row / 2) + Math.floor(column / 3)) % 2 === 0,
-  "101": (row, column) => ((row * column) % 2) + ((row * column) % 3) === 0,
-  "110": (row, column) => (((row * column) % 2) + ((row * column) % 3)) % 2 === 0,
-  "111": (row, column) => (((row + column) % 2) + ((row * column) % 3)) % 2 === 0
-}
+
 
 const MASK: QRMask = "001"
 
 function App() {
 
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [QRMatrix, setQRMatrix] = useState(createStartMatrix(1, "L", MASK, "byte"))
+  const textInputRef = useRef<HTMLInputElement>(null)
+  const correctionLevelRef = useRef<HTMLSelectElement>(null)
+  const [QRMatrix, setQRMatrix] = useState(createStartMatrix(1, "L", MASK))
 
-  // Fill the matrix with 
-  function fillNumber(binaryString: string) {
-    console.log({ binaryString, l: binaryString.length })
 
-    setQRMatrix(prevQRMatrix => {
+  function fillNumber(version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string) {
+    
+    const newQRMatrix = createStartMatrix(version, correctionLevel, MASK)
 
-      const newQRMatrix = prevQRMatrix.map(row => [...row])
-      let cont = false
+    let cont = false
 
-      for (let i = newQRMatrix[0].length - 1; i >= 0; i -= 2) {
-        const rowIndices = cont ? [...Array(newQRMatrix.length).keys()] : [...Array(newQRMatrix.length).keys()].reverse()
-
-        for (const j of rowIndices) {
-          for (let k = i; k > i - 2; k--) {
-            if (!binaryString) break
-
-            if (newQRMatrix[j][k] !== 0)
-              continue
-
-            newQRMatrix[j][k] = binaryString.charAt(0) === "0" ? 4 : 5
-            binaryString = binaryString.substring(1)
-          }
-        }
+    for (let i = newQRMatrix[0].length - 1; i >= 0; i -= 2) {
+      if (i === 6) i--
       
-        cont = !cont
+      const rowIndices = cont ? [...Array(newQRMatrix.length).keys()] : [...Array(newQRMatrix.length).keys()].reverse()
+
+      for (const j of rowIndices) {
+        for (let k = i; k > i - 2; k--) {
+          if (!binaryString) break
+
+          if (newQRMatrix[j][k] !== 0)
+            continue
+
+          newQRMatrix[j][k] = binaryString.charAt(0) === "0" ? 4 : 5
+          binaryString = binaryString.substring(1)
+        }
       }
-
-      // for (let i = 0; i < newQRMatrix.length; i++) {
-      //   for (let j = 0; j < newQRMatrix[i].length; j++) {
-      //     if (newQRMatrix[i][j] != 2 && newQRMatrix[i][j] != 3) {
-      //       const mask = MASKS[MASK]
-      //       if (mask(i, j)) {
-      //         newQRMatrix[i][j] = newQRMatrix[i][j] === 0 || newQRMatrix[i][j] === 4 ? 5 : 4
-      //       }
-      //     }
-      //   }
-      // }
-
-      return newQRMatrix
-    })
-
-  }
-
-  // Converts string to binary
-  function linkToBinary(link: string): string {
-    let binaryLink = ""
-
-    for (let i = 0; i < link.length; i++) {
-      binaryLink += link.charCodeAt(i).toString(2).padStart(8, "0")
+    
+      cont = !cont
     }
 
-    return binaryLink
+    applyPattern(newQRMatrix, MASK)
+
+    setQRMatrix(newQRMatrix)
   }
 
-  function createQR(link: string) {
+
+  function createQR(text: string, correctionLevel: QRErrorCorrectionKey) {
     const dataType = "byte"
-    const binaryLink = linkToBinary(link)
-    const binaryLinkLength = binaryLink.length.toString(2).padStart(8, "0")
+    const binaryText = stringToBinary(text)
+
+    const textLengthBinary = text.length.toString(2).padStart(8, "0")
     const finalBlock = "0000"
+    const codifiedData = TYPE_INFORMATION_DICTIONARY[dataType] + textLengthBinary + binaryText + finalBlock
 
-    const totalString = TYPE_INFORMATION_DICTIONARY[dataType] + binaryLinkLength + binaryLink + finalBlock
+    const QRVersion = getQRVersion(codifiedData.length, correctionLevel)
 
-    // This bytes are used to indicate the end of the data, in this case, 0xEC and 0x11, when the data 
-    const completeBytes = 0xEC.toString(2).padStart(8, "0") + 0x11.toString(2).padStart(8, "0")
-    fillNumber(totalString.padEnd(QR_INFORMATION[1].eccLevels.L.dataBits, completeBytes))
+    const dataTotalBits = QR_INFORMATION[QRVersion].eccLevels[correctionLevel].dataBits
+
+    const totalDataString = codifiedData.padEnd(dataTotalBits, COMPLETE_BYTES)
+    const totalCorrectionErrorDataString = generateCorrectionErrorData(QRVersion, correctionLevel, totalDataString)
+    
+    const dataAndCorrectionErrorString = totalDataString + totalCorrectionErrorDataString
+
+    fillNumber(QRVersion, correctionLevel, dataAndCorrectionErrorString)
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
+      createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey)
+    }
   }
 
   return (
     <>
-      <input type="text" ref={inputRef} />
-      <button onClick={() => {
-        if (inputRef.current && inputRef.current.value) {
-          createQR(inputRef.current.value)
-        }
-      }}></button>
-      <div style={{ backgroundColor: "brown", padding: '15px' }}>
+      <form id="options-form" onSubmit={handleSubmit}>
+        <label htmlFor="link">Escribe la URL:</label>
+        <input id="link" type="text" ref={textInputRef} />
+        <label htmlFor="qr-correction-level">Tipo de corrección:</label>
+        <select id="qr-correction-level" name="opciones" ref={correctionLevelRef}>
+          <option value="L">Muy bajo (L)</option>
+          <option value="M">Bajo (M)</option>
+          <option value="Q">Medio (Q)</option>
+          <option value="H">Alto (H)</option>
+        </select>
+        <button type="submit"></button>
+      </form>
+      <div style={{ backgroundColor: "white", padding: "20px", margin: "20px" }}>
         {
           QRMatrix.map((row, rowIndex) => { 
             return (
-              <div key={rowIndex} style={{ display: 'flex' }}>
+              <div key={rowIndex} style={{ display: "flex" }}>
                 {
                   row.map((col, colIndex) => {
                     return (
-                      <div key={colIndex} style={{ width: '20px', height: '20px', backgroundColor: COLORS[col] }}></div>
+                      <div key={colIndex} style={{ width: "20px", height: "20px", backgroundColor: COLORS[col] }}></div>
                     )
                   })
                 }
