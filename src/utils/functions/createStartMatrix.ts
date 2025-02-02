@@ -8,15 +8,6 @@ export function createStartMatrix(version: QRVersion, errorCorrectionLevel: QREr
   const size = version * 4 + 17 // The size of the matrix is always 4 times the version + 17
   const matrix = new Array(size).fill(null).map(() => new Array(size).fill(0))
 
-  // Set type information
-  // const typeInformation = TYPE_INFORMATION_DICTIONARY[dataType]
-  // const typeInformationLength = typeInformation.length
-
-  // for (let i = 0; i < typeInformationLength / 2; i++) {
-  //   matrix[size - 1][size - i - 1] = parseInt(typeInformation.charAt(i)) === 0 ? 4 : 5
-  //   matrix[size - 2][size - 2 + i] = parseInt(typeInformation.charAt(typeInformationLength - i - 1)) === 0 ? 4 : 5
-  // }
-
   // Create the finder patterns (corner squares)
   for (let i = 0; i < 8; i++) {
     for (let j = 0; j < 8; j++) {
@@ -49,6 +40,7 @@ export function createStartMatrix(version: QRVersion, errorCorrectionLevel: QREr
 
   // Create the format bits
   const formatBits = createFormatBits(ERROR_CORRECTION[errorCorrectionLevel], mask)
+  
   let topLeftCounter = 0
   let bottomLeftAndTopRightCounter = 0
 
@@ -75,7 +67,7 @@ export function createStartMatrix(version: QRVersion, errorCorrectionLevel: QREr
   matrix[size - 8][8] = 5
 
   // Align patterns
-  console.log(matrix)
+  
 
   return matrix
 }
