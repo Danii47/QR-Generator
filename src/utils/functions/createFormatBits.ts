@@ -20,7 +20,7 @@ export function createFormatBits(correctFormat: QRErrorCorrectionValue, mask: QR
       remainder = remainder.padStart(generatorLength - 1, "0")
     }
   }
-
+  
   const finalFormatBits = correctFormat + mask + remainder
   const finalFormatBitsWithDefaultMask = XOR(finalFormatBits, defaultMask).padStart(totalFormatBitsLength, "0")
 
