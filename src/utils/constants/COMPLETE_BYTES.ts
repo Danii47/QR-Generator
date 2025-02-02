@@ -1,0 +1,1 @@
+export const COMPLETE_BYTES = 0xEC.toString(2).padStart(8, "0") + 0x11.toString(2).padStart(8, "0")
