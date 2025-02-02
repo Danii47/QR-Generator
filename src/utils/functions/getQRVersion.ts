@@ -1,7 +1,6 @@
 import { QRErrorCorrectionKey, QRVersion } from "../../types/QRTypes"
 import { QR_INFORMATION } from "../constants/QR_INFORMATION"
 
-
 export function getQRVersion(dataLength: number, correctionLevel: QRErrorCorrectionKey): QRVersion {
   
   for (const version in QR_INFORMATION) {
