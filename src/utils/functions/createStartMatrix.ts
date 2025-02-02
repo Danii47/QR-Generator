@@ -1,22 +1,21 @@
-import { QRDataType, QRErrorCorrectionKey, QRMask, QRVersion } from "../../types/QRTypes"
+import { QRErrorCorrectionKey, QRMask, QRVersion } from "../../types/QRTypes"
 import { ERROR_CORRECTION } from "../constants/ERROR_CORRECTION_DICTIONARY"
-import { TYPE_INFORMATION_DICTIONARY } from "../constants/TYPE_INFORMATION_DICTIONARY"
 import { createFormatBits } from "./createFormatBits"
 
 
 
-export function createStartMatrix(version: QRVersion, errorCorrectionLevel: QRErrorCorrectionKey, mask: QRMask, dataType: QRDataType) {
+export function createStartMatrix(version: QRVersion, errorCorrectionLevel: QRErrorCorrectionKey, mask: QRMask) {
   const size = version * 4 + 17 // The size of the matrix is always 4 times the version + 17
   const matrix = new Array(size).fill(null).map(() => new Array(size).fill(0))
 
   // Set type information
-  const typeInformation = TYPE_INFORMATION_DICTIONARY[dataType]
-  const typeInformationLength = typeInformation.length
+  // const typeInformation = TYPE_INFORMATION_DICTIONARY[dataType]
+  // const typeInformationLength = typeInformation.length
 
-  for (let i = 0; i < typeInformationLength / 2; i++) {
-    matrix[size - 1][size - i - 1] = parseInt(typeInformation.charAt(i)) === 0 ? 4 : 5
-    matrix[size - 2][size - 2 + i] = parseInt(typeInformation.charAt(typeInformationLength - i - 1)) === 0 ? 4 : 5
-  }
+  // for (let i = 0; i < typeInformationLength / 2; i++) {
+  //   matrix[size - 1][size - i - 1] = parseInt(typeInformation.charAt(i)) === 0 ? 4 : 5
+  //   matrix[size - 2][size - 2 + i] = parseInt(typeInformation.charAt(typeInformationLength - i - 1)) === 0 ? 4 : 5
+  // }
 
   // Create the finder patterns (corner squares)
   for (let i = 0; i < 8; i++) {
