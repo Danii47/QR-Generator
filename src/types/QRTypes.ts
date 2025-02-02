@@ -9,3 +9,16 @@ export type QRMask = "000" | "001" | "010" | "011" | "100" | "101" | "110" | "11
 
 export type QRDataType = "numeric" | "alphanumeric" | "byte" | "kanji"
 export type QRDataTypeFlag = "0001" | "0010" | "0100" | "1000"
+
+type QRData = {
+  dataBits: number
+  numeric: number
+  alphanumeric: number
+  binary: number
+  kanji: number
+}
+
+export type QRInformation = {
+  modules: `${string}x${string}`
+  eccLevels: Record<QRErrorCorrectionKey, QRData>
+}
