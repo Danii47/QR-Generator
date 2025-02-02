@@ -1,8 +1,8 @@
 import { QRErrorCorrection } from "../../types/QRTypes";
 
 export const ERROR_CORRECTION: QRErrorCorrection = {
-  "L": "11",
-  "M": "10",
-  "Q": "01",
-  "H": "00"
+  "L": "01",
+  "M": "00",
+  "Q": "11",
+  "H": "10"
 }
