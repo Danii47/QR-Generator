@@ -1,6 +1,6 @@
-import { QRErrorCorrectionKey, QRVersion } from "../../types/QRTypes";
-import { divideReedSolomonPolynomials, generateReedSolomonPolynomial } from "./generateReedSolomonPolynomial";
-import { getQRCorrectionErrorBits } from "./getQRCorrectionErrorBits";
+import { QRErrorCorrectionKey, QRVersion } from "../../types/QRTypes"
+import { divideReedSolomonPolynomials, generateReedSolomonPolynomial } from "./generateReedSolomonPolynomial"
+import { getQRCorrectionErrorBits } from "./getQRCorrectionErrorBits"
 
 export function generateCorrectionErrorData(version: QRVersion, errorCorrectionLevel: QRErrorCorrectionKey, data: string): string {
   const { correctionBytes } = getQRCorrectionErrorBits(version, errorCorrectionLevel)
