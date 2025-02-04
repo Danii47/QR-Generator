@@ -8,5 +8,5 @@ export function getQRCorrectionErrorBits(version: QRVersion, errorCorrectionLeve
 
   const correctionBits = totalBits - dataBits
 
-  return { correctionBits, correctionBytes: correctionBits / 8 }
+  return { correctionBits, correctionBytes: Math.floor(correctionBits / 8) }
 }
