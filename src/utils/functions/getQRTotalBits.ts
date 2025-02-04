@@ -1,4 +1,5 @@
 import { QRVersion } from "../../types/QRTypes";
+import { getCoordinateGrid } from "./getCoordinateGrid";
 import { getQRDimensions } from "./getQRDimensions";
 
 export function getQRTotalBits(version: QRVersion): { totalBits: number, totalBytes: number } {
@@ -11,9 +12,9 @@ export function getQRTotalBits(version: QRVersion): { totalBits: number, totalBy
   // TODO: Implement version information
   const versionBits = version < 7 ? 0 : 18 // 18 bits for version information if the version is 7 or higher
 
-  const alignSquareBits = 0 // TODO: Implement align squares
+  const alignSquareBits = getCoordinateGrid(version).length * (5 * 5) // 5 * 5 bits for each align square
 
   const totalBitsToDataAndErrorCorrection = totalBits - (positionSquaresBits + formatBits + zebraStripesBits + versionBits + alignSquareBits + 1)
   
-  return { totalBits: totalBitsToDataAndErrorCorrection, totalBytes: totalBitsToDataAndErrorCorrection / 8 }
+  return { totalBits: totalBitsToDataAndErrorCorrection, totalBytes: Math.floor(totalBitsToDataAndErrorCorrection / 8) }
 }
