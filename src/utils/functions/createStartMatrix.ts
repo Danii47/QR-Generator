@@ -1,8 +1,7 @@
 import { QRErrorCorrectionKey, QRMask, QRVersion } from "../../types/QRTypes"
 import { ERROR_CORRECTION } from "../constants/ERROR_CORRECTION_DICTIONARY"
 import { createFormatBits } from "./createFormatBits"
-
-
+import { getCoordinateGrid } from "./getCoordinateGrid"
 
 export function createStartMatrix(version: QRVersion, errorCorrectionLevel: QRErrorCorrectionKey, mask: QRMask) {
   const size = version * 4 + 17 // The size of the matrix is always 4 times the version + 17
@@ -51,7 +50,6 @@ export function createStartMatrix(version: QRVersion, errorCorrectionLevel: QREr
       topLeftCounter++
     }
 
-
     if (i < 7) {
       matrix[matrix.length - i - 1][8] = parseInt(formatBits.charAt(bottomLeftAndTopRightCounter)) === 0 ? 2 : 3
     }
@@ -67,7 +65,24 @@ export function createStartMatrix(version: QRVersion, errorCorrectionLevel: QREr
   matrix[size - 8][8] = 5
 
   // Align patterns
-  
+  const coordinatesGrid = getCoordinateGrid(version)
+  if (coordinatesGrid) {
+    for (let i = 0; i < coordinatesGrid.length; i++) {
+
+      const x = coordinatesGrid[i][0]
+      const y = coordinatesGrid[i][1]
+
+      for (let j = -2; j <= 2; j++) {
+        for (let k = -2; k <= 2; k++) {
+          if (((j === -1 || j === 1) && (k >= -1 && k <= 1)) || ((k === -1 || k === 1) && (j >= -1 && j <= 1))) {
+            matrix[x + j][y + k] = 2
+          } else {
+            matrix[x + j][y + k] = 3
+          }
+        }
+      }
+    }
+  }
 
   return matrix
 }
