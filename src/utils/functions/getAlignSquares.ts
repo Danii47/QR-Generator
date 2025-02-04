@@ -1,8 +1,8 @@
 import { QRVersion } from "../../types/QRTypes";
 import { getQRDimensions } from "./getQRDimensions";
 
-export function getAlignSquaresCoords(version: QRVersion): number[] | null {
-  if (version === 1) return null
+export function getAlignSquaresCoords(version: QRVersion): number[] {
+  if (version === 1) return []
   else {
     const QRDimension = getQRDimensions(version)
     const numberOfCoords = Math.floor(version / 7) + 2
