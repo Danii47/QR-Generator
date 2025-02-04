@@ -19,8 +19,6 @@ const COLORS: Record<number, string> = {
   5: "black"
 }
 
-
-
 const MASK: QRMask = "001"
 
 function App() {
