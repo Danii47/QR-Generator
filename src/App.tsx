@@ -67,15 +67,37 @@ function App() {
     const textLengthBinary = text.length.toString(2).padStart(8, "0")
     const finalBlock = "0000"
     const codifiedData = TYPE_INFORMATION_DICTIONARY[dataType] + textLengthBinary + binaryText + finalBlock
-
-    const QRVersion = getQRVersion(codifiedData.length, correctionLevel)
-
-    const dataTotalBits = QR_INFORMATION[QRVersion].eccLevels[correctionLevel].dataBits
-
-    const totalDataString = codifiedData.padEnd(dataTotalBits, COMPLETE_BYTES)
-    const totalCorrectionErrorDataString = generateCorrectionErrorData(QRVersion, correctionLevel, totalDataString)
     
-    const dataAndCorrectionErrorString = totalDataString + totalCorrectionErrorDataString
+    const QRVersion = getQRVersion(codifiedData.length, correctionLevel)
+    const { dataBits, numberOfBlocksInGroupOne } = QR_INFORMATION[QRVersion].eccLevels[correctionLevel]
+    
+    const totalDataString = codifiedData.padEnd(dataBits, COMPLETE_BYTES)
+
+    const dataBlocks = new Array(numberOfBlocksInGroupOne)
+    const errorBlocks = new Array(numberOfBlocksInGroupOne)
+    const blockCapacitie = totalDataString.length / numberOfBlocksInGroupOne
+
+    for (let i = 0; i < dataBlocks.length; i++) {
+      dataBlocks[i] = totalDataString.substring(i * blockCapacitie, (i + 1) * blockCapacitie)
+      errorBlocks[i] = generateCorrectionErrorData(QRVersion, correctionLevel, dataBlocks[i]).match(/.{1,8}/g)
+      
+      dataBlocks[i] = dataBlocks[i].match(/.{1,8}/g)
+    }
+
+
+    let dataAndCorrectionErrorString = ""
+
+    for (let i = 0; i < dataBlocks[0].length; i++) {
+      for (let j = 0; j < dataBlocks.length; j++) {
+        dataAndCorrectionErrorString += dataBlocks[j][i]
+      }
+    }
+
+    for (let i = 0; i < errorBlocks[0].length; i++) {
+      for (let j = 0; j < errorBlocks.length; j++) {
+        dataAndCorrectionErrorString += errorBlocks[j][i]
+      }
+    }
 
     fillNumber(QRVersion, correctionLevel, dataAndCorrectionErrorString)
   }
@@ -108,6 +130,7 @@ function App() {
               <div key={rowIndex} style={{ display: "flex" }}>
                 {
                   row.map((col, colIndex) => {
+                    // TODO Que se pueda cambiar el color de los cuadros y el border radius, para que puedan ser redondos o con los bordes redondeados
                     return (
                       <div key={colIndex} style={{ width: "20px", height: "20px", backgroundColor: COLORS[col] }}></div>
                     )
