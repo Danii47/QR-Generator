@@ -18,6 +18,7 @@ type QRData = {
   alphanumeric: number
   binary: number
   kanji: number
+  numberOfBlocksInGroupOne: number
 }
 
 export type QRInformation = {
