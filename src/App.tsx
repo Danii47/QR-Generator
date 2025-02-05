@@ -10,23 +10,24 @@ import { generateCorrectionErrorData } from "./utils/functions/generateCorrectio
 import { COMPLETE_BYTES } from "./utils/constants/COMPLETE_BYTES"
 import { getQRVersion } from "./utils/functions/getQRVersion"
 
-const COLORS: Record<number, string> = {
-  0: "white",
-  1: "black",
-  2: "white",
-  3: "black",
-  4: "white",
-  5: "black"
-}
 
 const MASK: QRMask = "001"
 
 function App() {
-
+  
   const textInputRef = useRef<HTMLInputElement>(null)
   const correctionLevelRef = useRef<HTMLSelectElement>(null)
   const [QRMatrix, setQRMatrix] = useState(createStartMatrix(1, "L", MASK))
-
+  const [fillCellsColor, setFillCellsColor] = useState("black")
+  
+  const COLORS: Record<number, string> = {
+    0: "white",
+    1: fillCellsColor,
+    2: "white",
+    3: fillCellsColor,
+    4: "white",
+    5: fillCellsColor
+  }
 
   function fillNumber(version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string) {
     
@@ -121,6 +122,7 @@ function App() {
           <option value="Q">Medio (Q)</option>
           <option value="H">Alto (H)</option>
         </select>
+        <input type="color" value={fillCellsColor} onChange={(event) => setFillCellsColor(event.target.value)} />
         <button type="submit"></button>
       </form>
       <div style={{ backgroundColor: "white", padding: "20px", margin: "20px" }}>
