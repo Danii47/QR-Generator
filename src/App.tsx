@@ -70,27 +70,29 @@ function App() {
     const codifiedData = TYPE_INFORMATION_DICTIONARY[dataType] + textLengthBinary + binaryText + finalBlock
     
     const QRVersion = getQRVersion(codifiedData.length, correctionLevel)
-    const { dataBits, numberOfBlocksInGroupOne } = QR_INFORMATION[QRVersion].eccLevels[correctionLevel]
+    const { dataBits, numberOfBlocksInGroupOne, numberOfBlocksInGroupTwo } = QR_INFORMATION[QRVersion].eccLevels[correctionLevel]
     
     const totalDataString = codifiedData.padEnd(dataBits, COMPLETE_BYTES)
 
-    const dataBlocks = new Array(numberOfBlocksInGroupOne)
-    const errorBlocks = new Array(numberOfBlocksInGroupOne)
-    const blockCapacitie = totalDataString.length / numberOfBlocksInGroupOne
+    const dataBlocks = new Array(numberOfBlocksInGroupOne + numberOfBlocksInGroupTwo)
+    const errorBlocks = new Array(numberOfBlocksInGroupOne + numberOfBlocksInGroupTwo)
+    const blockCapacitieInGroupOne = Math.floor(totalDataString.length / dataBlocks.length / 8) * 8
 
     for (let i = 0; i < dataBlocks.length; i++) {
-      dataBlocks[i] = totalDataString.substring(i * blockCapacitie, (i + 1) * blockCapacitie)
+      const start = i * blockCapacitieInGroupOne + (i > numberOfBlocksInGroupOne ? 8 : 0)
+      const end = (i + 1) * blockCapacitieInGroupOne + (i >= numberOfBlocksInGroupOne ? 8 : 0)
+
+      dataBlocks[i] = totalDataString.substring(start, end + (i > numberOfBlocksInGroupOne ? 8 : 0))
       errorBlocks[i] = generateCorrectionErrorData(QRVersion, correctionLevel, dataBlocks[i]).match(/.{1,8}/g)
-      
       dataBlocks[i] = dataBlocks[i].match(/.{1,8}/g)
     }
 
-
     let dataAndCorrectionErrorString = ""
 
-    for (let i = 0; i < dataBlocks[0].length; i++) {
+    for (let i = 0; i < dataBlocks[dataBlocks.length - 1].length; i++) {
       for (let j = 0; j < dataBlocks.length; j++) {
-        dataAndCorrectionErrorString += dataBlocks[j][i]
+        if (dataBlocks[j][i])
+          dataAndCorrectionErrorString += dataBlocks[j][i]
       }
     }
 
