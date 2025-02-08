@@ -13,9 +13,14 @@ export function getQRTotalBits(version: QRVersion): { totalBits: number, totalBy
 
   const alignSquareBits = getCoordinateGrid(version).length * (5 * 5) // 5 * 5 bits for each align square
 
-  const versionInformationBits = getVersionInformation(version)?.length || 0 // 18 bits for version information if the version is 7 or higher
+  const versionInformationBits = 2 * (getVersionInformation(version)?.length || 0) // 18 bits for version information if the version is 7 or higher
 
-  const totalBitsToDataAndErrorCorrection = totalBits - (positionSquaresBits + formatBits + zebraStripesBits + alignSquareBits + versionInformationBits + 1)
-  
+  let totalBitsToDataAndErrorCorrection = totalBits - (positionSquaresBits + formatBits + zebraStripesBits + alignSquareBits + versionInformationBits + 1)
+
+  for (const coordinateGrid of getCoordinateGrid(version)) {
+    if (coordinateGrid[0] === 6 || coordinateGrid[1] === 6)
+      totalBitsToDataAndErrorCorrection += 5
+  }
+
   return { totalBits: totalBitsToDataAndErrorCorrection, totalBytes: Math.floor(totalBitsToDataAndErrorCorrection / 8) }
 }
