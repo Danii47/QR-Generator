@@ -1,0 +1,1 @@
+export const FINAL_BLOCK = "0000"
