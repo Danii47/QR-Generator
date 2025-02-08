@@ -9,20 +9,20 @@ export type QRErrorCorrection = Record<QRErrorCorrectionKey, QRErrorCorrectionVa
 
 export type QRMask = `${Binary}${Binary}${Binary}`
 
-export type QRDataType = "numeric" | "alphanumeric" | "byte" | "kanji"
-export type QRDataTypeFlag = "0001" | "0010" | "0100" | "1000"
+export type QREncodedType = "numeric" | "alphanumeric" | "byte" | "kanji"
+export type QREncodedTypeFlag = "0001" | "0010" | "0100" | "1000"
 
 type QRData = {
   dataBits: number
-  numeric: number
-  alphanumeric: number
-  binary: number
-  kanji: number
   numberOfBlocksInGroupOne: number
   numberOfBlocksInGroupTwo: number
-}
+} & Record<QREncodedType, number>
 
 export type QRInformation = {
   modules: `${number}x${number}`
   eccLevels: Record<QRErrorCorrectionKey, QRData>
 }
+
+type QRMatrixCell = 0 | 2 | 3 | 4 | 5
+
+export type QRMatrixType = QRMatrixCell[][]
