@@ -51,9 +51,9 @@ function App() {
 
           newQRMatrix[j][k] = binaryString.charAt(0) === "0" ? 4 : 5
           
-          if (j >= 10 && j < 15 && k >= 10 && k < 15) {
-            newQRMatrix[j][k] = 2
-          }
+          // if (j >= 10 && j < 15 && k >= 10 && k < 15) {
+          //   newQRMatrix[j][k] = 2
+          // }
           binaryString = binaryString.substring(1)
         }
       }
