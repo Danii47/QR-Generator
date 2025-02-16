@@ -26,3 +26,5 @@ export type QRInformation = {
 type QRMatrixCell = 0 | 2 | 3 | 4 | 5
 
 export type QRMatrixType = QRMatrixCell[][]
+
+export type QRBitsType = "square" | "circle" | "rounded"
