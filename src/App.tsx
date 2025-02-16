@@ -9,7 +9,6 @@ import { stringToBinary } from "./utils/functions/stringToBinary"
 import { generateCorrectionErrorData } from "./utils/functions/generateCorrectionErrorData"
 import { COMPLETE_BYTES } from "./utils/constants/COMPLETE_BYTES"
 import { getQRVersion } from "./utils/functions/getQRVersion"
-// import { getAroundBorderRadius } from "./utils/functions/getAroundBorderRadius"
 import { getLengthBits } from "./utils/functions/getLengthBits"
 import { FINAL_BLOCK } from "./utils/constants/FINAL_BLOCK"
 
@@ -51,9 +50,9 @@ function App() {
 
           newQRMatrix[j][k] = binaryString.charAt(0) === "0" ? 4 : 5
           
-          // if (j >= 10 && j < 15 && k >= 10 && k < 15) {
-          //   newQRMatrix[j][k] = 2
-          // }
+          if (j >= 10 && j < 15 && k >= 10 && k < 15) {
+            newQRMatrix[j][k] = 2
+          }
           binaryString = binaryString.substring(1)
         }
       }
@@ -98,8 +97,6 @@ function App() {
         }
       })
     })
-
-    // setQRMatrix(newQRMatrix)
   }
 
 
