@@ -1,7 +1,7 @@
 import { useRef, useState } from "react"
 import "./App.css"
 import { createStartMatrix } from "./utils/functions/createStartMatrix"
-import { QRBitsType, QRErrorCorrectionKey, QRMask, QRMatrixType, QRVersion } from "./types/QRTypes"
+import { QRBitsType, QRErrorCorrectionKey, QRMask, QRVersion } from "./types/QRTypes"
 import { QR_INFORMATION } from "./utils/constants/QR_INFORMATION"
 import { TYPE_INFORMATION_DICTIONARY } from "./utils/constants/TYPE_INFORMATION_DICTIONARY"
 import { applyPattern } from "./utils/functions/applyPattern"
@@ -9,7 +9,7 @@ import { stringToBinary } from "./utils/functions/stringToBinary"
 import { generateCorrectionErrorData } from "./utils/functions/generateCorrectionErrorData"
 import { COMPLETE_BYTES } from "./utils/constants/COMPLETE_BYTES"
 import { getQRVersion } from "./utils/functions/getQRVersion"
-import { getAroundBorderRadius } from "./utils/functions/getAroundBorderRadius"
+// import { getAroundBorderRadius } from "./utils/functions/getAroundBorderRadius"
 import { getLengthBits } from "./utils/functions/getLengthBits"
 import { FINAL_BLOCK } from "./utils/constants/FINAL_BLOCK"
 
@@ -20,7 +20,6 @@ function App() {
   const textInputRef = useRef<HTMLInputElement>(null)
   const correctionLevelRef = useRef<HTMLSelectElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [QRMatrix, setQRMatrix] = useState<QRMatrixType>(createStartMatrix(1, "L", MASK))
   const [fillCellsColor, setFillCellsColor] = useState("black")
   const [bitsType, setBitsType] = useState<QRBitsType>("square")
 
@@ -51,6 +50,10 @@ function App() {
             continue
 
           newQRMatrix[j][k] = binaryString.charAt(0) === "0" ? 4 : 5
+          
+          if (j >= 10 && j < 15 && k >= 10 && k < 15) {
+            newQRMatrix[j][k] = 2
+          }
           binaryString = binaryString.substring(1)
         }
       }
@@ -96,18 +99,19 @@ function App() {
       })
     })
 
-    setQRMatrix(newQRMatrix)
+    // setQRMatrix(newQRMatrix)
   }
 
 
   const descargarImagen = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const enlace = document.createElement('a');
-    enlace.href = canvas.toDataURL('image/png');
-    enlace.download = 'qr.png';
-    enlace.click();
-  };
+    if (!canvas) return
+
+    const link = document.createElement('a')
+    link.href = canvas.toDataURL('image/png')
+    link.download = 'qr.png'
+    link.click()
+  }
 
   function createQR(text: string, correctionLevel: QRErrorCorrectionKey) {
     const encodedType = "byte"
@@ -166,7 +170,7 @@ function App() {
       <form id="options-form" onSubmit={handleSubmit}>
         <div id="link-container">
           <label htmlFor="link">Escribe la URL</label>
-          <input id="link" type="text" ref={textInputRef} value="https://mipaginaweb.com" />
+          <input id="link" type="text" ref={textInputRef} placeholder="https://mipaginaweb.com" />
         </div>
         <div className="options-container">
           <div className="option-container">
