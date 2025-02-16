@@ -1,7 +1,7 @@
 import { useRef, useState } from "react"
 import "./App.css"
 import { createStartMatrix } from "./utils/functions/createStartMatrix"
-import { QRErrorCorrectionKey, QRMask, QRMatrixType, QRVersion } from "./types/QRTypes"
+import { QRBitsType, QRErrorCorrectionKey, QRMask, QRMatrixType, QRVersion } from "./types/QRTypes"
 import { QR_INFORMATION } from "./utils/constants/QR_INFORMATION"
 import { TYPE_INFORMATION_DICTIONARY } from "./utils/constants/TYPE_INFORMATION_DICTIONARY"
 import { applyPattern } from "./utils/functions/applyPattern"
@@ -16,14 +16,13 @@ import { FINAL_BLOCK } from "./utils/constants/FINAL_BLOCK"
 const MASK: QRMask = "100"
 
 function App() {
-  
+
   const textInputRef = useRef<HTMLInputElement>(null)
   const correctionLevelRef = useRef<HTMLSelectElement>(null)
   const [QRMatrix, setQRMatrix] = useState<QRMatrixType>(createStartMatrix(1, "L", MASK))
   const [fillCellsColor, setFillCellsColor] = useState("black")
-  const [squaresToCircles, setSquaresToCircles] = useState(false)
-  const [squaresToRounded, setSquaresToRounded] = useState(false)
-  
+  const [bitsType, setBitsType] = useState<QRBitsType>("square")
+
   const COLORS: Record<number, string> = {
     0: "white", // Empty
     2: "white", // Finder cell
@@ -33,14 +32,14 @@ function App() {
   }
 
   function fillNumber(version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string) {
-    
+
     const newQRMatrix = createStartMatrix(version, correctionLevel, MASK)
 
     let cont = false
 
     for (let i = newQRMatrix[0].length - 1; i >= 0; i -= 2) {
       if (i === 6) i--
-      
+
       const rowIndices = cont ? [...Array(newQRMatrix.length).keys()] : [...Array(newQRMatrix.length).keys()].reverse()
 
       for (const j of rowIndices) {
@@ -54,7 +53,7 @@ function App() {
           binaryString = binaryString.substring(1)
         }
       }
-    
+
       cont = !cont
     }
 
@@ -71,17 +70,17 @@ function App() {
     const QRVersion = getQRVersion(binaryText.length, correctionLevel, encodedType)
 
     const textLengthBinary = text.length.toString(2).padStart(getLengthBits(QRVersion, encodedType), "0")
-    
+
     const codifiedData = TYPE_INFORMATION_DICTIONARY[encodedType] + textLengthBinary + binaryText + FINAL_BLOCK
 
     const { dataBits, numberOfBlocksInGroupOne, numberOfBlocksInGroupTwo } = QR_INFORMATION[QRVersion].eccLevels[correctionLevel]
-    
+
     const totalDataString = codifiedData.padEnd(dataBits, COMPLETE_BYTES)
-    
+
     const dataBlocks = new Array(numberOfBlocksInGroupOne + numberOfBlocksInGroupTwo)
     const errorBlocks = new Array(numberOfBlocksInGroupOne + numberOfBlocksInGroupTwo)
     const blockCapacitieInGroupOne = Math.floor(totalDataString.length / dataBlocks.length / 8) * 8
-    
+
     for (let i = 0; i < dataBlocks.length; i++) {
       const start = i * blockCapacitieInGroupOne + (i > numberOfBlocksInGroupOne ? 8 * (i - numberOfBlocksInGroupOne) : 0)
       const end = (i + 1) * blockCapacitieInGroupOne + (i >= numberOfBlocksInGroupOne ? 8 * (i - numberOfBlocksInGroupOne + 1) : 0)
@@ -121,25 +120,34 @@ function App() {
       <form id="options-form" onSubmit={handleSubmit}>
         <label htmlFor="link">Escribe la URL:</label>
         <input id="link" type="text" ref={textInputRef} />
-        <label htmlFor="qr-correction-level">Tipo de corrección:</label>
-        <select id="qr-correction-level" name="opciones" ref={correctionLevelRef}>
-          <option value="L">Muy bajo (L)</option>
-          <option value="M">Bajo (M)</option>
-          <option value="Q">Medio (Q)</option>
-          <option value="H">Alto (H)</option>
-        </select>
-        <label htmlFor="select-color">Color</label>
-        <input id="select-color" type="color" value={fillCellsColor} onChange={(event) => setFillCellsColor(event.target.value)} />
-        <label htmlFor="circles-checkbox">Circulos</label>
-        <input id="circles-checkbox" type="checkbox" checked={squaresToCircles} onChange={(event) => setSquaresToCircles(event.target.checked)}/>
-        <label htmlFor="squares-rounded-checkbox">Redondeados</label>
-        <input id="squares-rounded-checkbox" type="checkbox" checked={squaresToRounded} onChange={(event) => setSquaresToRounded(event.target.checked)}/>
-
+        <div className="options-container">
+          <div className="option-container">
+            <label htmlFor="qr-correction-level">Tipo de corrección:</label>
+            <select id="qr-correction-level" ref={correctionLevelRef}>
+              <option value="L">Muy bajo (L)</option>
+              <option value="M">Bajo (M)</option>
+              <option value="Q">Medio (Q)</option>
+              <option value="H">Alto (H)</option>
+            </select>
+          </div>
+          <div className="option-container">
+            <label htmlFor="select-color">Color</label>
+            <input id="select-color" type="color" value={fillCellsColor} onChange={(event) => setFillCellsColor(event.target.value)} />
+          </div>
+          <div className="option-container">
+            <label htmlFor="qr-bits-type">Forma del QR:</label>
+            <select id="qr-bits-type" onChange={(event) => setBitsType(event.target.value as QRBitsType)}>
+              <option value="square">Cuadrados</option>
+              <option value="circle">Circulos</option>
+              <option value="rounded">Redondeados</option>
+            </select>
+          </div>
+        </div>
         <button type="submit"></button>
       </form>
       <div style={{ backgroundColor: "white", padding: "40px", margin: "20px" }}>
         {
-          QRMatrix.map((row, rowIndex) => { 
+          QRMatrix.map((row, rowIndex) => {
             return (
               <div key={rowIndex} style={{ display: "flex" }}>
                 {
@@ -149,10 +157,10 @@ function App() {
                       width: "20px",
                       height: "20px",
                       backgroundColor: COLORS[col],
-                      // borderRadius: squaresToCircles ? "50%" : "0",
-                      ...(squaresToRounded ? getAroundBorderRadius(QRMatrix, rowIndex, colIndex) : {})
+                      borderRadius: bitsType === "circle" ? "50%" : "0",
+                      ...(bitsType === "rounded" ? getAroundBorderRadius(QRMatrix, rowIndex, colIndex) : {})
                     }
-                    
+
                     return (
                       <div key={colIndex} style={styles}></div>
                     )
