@@ -19,6 +19,7 @@ function App() {
 
   const textInputRef = useRef<HTMLInputElement>(null)
   const correctionLevelRef = useRef<HTMLSelectElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [QRMatrix, setQRMatrix] = useState<QRMatrixType>(createStartMatrix(1, "L", MASK))
   const [fillCellsColor, setFillCellsColor] = useState("black")
   const [bitsType, setBitsType] = useState<QRBitsType>("square")
@@ -59,9 +60,54 @@ function App() {
 
     applyPattern(newQRMatrix, MASK)
 
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    canvas.width = newQRMatrix[0].length * 20
+    canvas.height = newQRMatrix.length * 20
+
+    newQRMatrix.forEach((fila, y) => {
+      fila.forEach((valor, x) => {
+        ctx.fillStyle = COLORS[valor]
+        if (bitsType === "circle") {
+          ctx.beginPath()
+          ctx.arc(x * 20 + 10, y * 20 + 10, 10, 0, 2 * Math.PI)
+          ctx.fill()
+          ctx.closePath()
+        } else if (bitsType === "rounded") {
+          const px = x * 20;
+          const py = y * 20;
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.lineTo(px + 20 * 0.75, py);
+          ctx.arcTo(px + 20, py, px + 20, py + 20 * 0.25, 20);
+          ctx.lineTo(px + 20, py + 20 * 0.75);
+          ctx.arcTo(px + 20, py + 20, px + 20 * 0.75, py + 20, 20 * 0.25);
+          ctx.lineTo(px + 20 * 0.25, py + 20);
+          ctx.lineTo(px, py + 20);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          ctx.fillRect(x * 20, y * 20, 20, 20)
+        }
+      })
+    })
+
     setQRMatrix(newQRMatrix)
   }
 
+
+  const descargarImagen = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const enlace = document.createElement('a');
+    enlace.href = canvas.toDataURL('image/png');
+    enlace.download = 'qr.png';
+    enlace.click();
+  };
 
   function createQR(text: string, correctionLevel: QRErrorCorrectionKey) {
     const encodedType = "byte"
@@ -118,16 +164,17 @@ function App() {
   return (
     <>
       <form id="options-form" onSubmit={handleSubmit}>
-        <label htmlFor="link">Escribe la URL:</label>
-        <input id="link" type="text" ref={textInputRef} />
+        <div id="link-container">
+          <label htmlFor="link">Escribe la URL</label>
+          <input id="link" type="text" ref={textInputRef} value="https://mipaginaweb.com" />
+        </div>
         <div className="options-container">
           <div className="option-container">
-            <label htmlFor="qr-correction-level">Tipo de corrección:</label>
-            <select id="qr-correction-level" ref={correctionLevelRef}>
-              <option value="L">Muy bajo (L)</option>
-              <option value="M">Bajo (M)</option>
-              <option value="Q">Medio (Q)</option>
-              <option value="H">Alto (H)</option>
+            <label htmlFor="qr-bits-type">Estilo</label>
+            <select id="qr-bits-type" onChange={(event) => setBitsType(event.target.value as QRBitsType)}>
+              <option value="square">Cuadrados</option>
+              <option value="circle">Circulos</option>
+              <option value="rounded">Redondeados</option>
             </select>
           </div>
           <div className="option-container">
@@ -135,41 +182,20 @@ function App() {
             <input id="select-color" type="color" value={fillCellsColor} onChange={(event) => setFillCellsColor(event.target.value)} />
           </div>
           <div className="option-container">
-            <label htmlFor="qr-bits-type">Forma del QR:</label>
-            <select id="qr-bits-type" onChange={(event) => setBitsType(event.target.value as QRBitsType)}>
-              <option value="square">Cuadrados</option>
-              <option value="circle">Circulos</option>
-              <option value="rounded">Redondeados</option>
+            <label htmlFor="qr-correction-level">Corrección</label>
+            <select id="qr-correction-level" ref={correctionLevelRef}>
+              <option value="L">Muy bajo (L)</option>
+              <option value="M">Bajo (M)</option>
+              <option value="Q">Medio (Q)</option>
+              <option value="H">Alto (H)</option>
             </select>
           </div>
         </div>
-        <button type="submit"></button>
+        <button type="submit" id="button-submit">Generar</button>
       </form>
-      <div style={{ backgroundColor: "white", padding: "40px", margin: "20px" }}>
-        {
-          QRMatrix.map((row, rowIndex) => {
-            return (
-              <div key={rowIndex} style={{ display: "flex" }}>
-                {
-                  row.map((col, colIndex) => {
-                    // TODO Que se pueda cambiar el color de los cuadros y el border radius, para que puedan ser redondos o con los bordes redondeados
-                    const styles = {
-                      width: "20px",
-                      height: "20px",
-                      backgroundColor: COLORS[col],
-                      borderRadius: bitsType === "circle" ? "50%" : "0",
-                      ...(bitsType === "rounded" ? getAroundBorderRadius(QRMatrix, rowIndex, colIndex) : {})
-                    }
-
-                    return (
-                      <div key={colIndex} style={styles}></div>
-                    )
-                  })
-                }
-              </div>
-            )
-          })
-        }
+      <div id="canva-container">
+        <canvas ref={canvasRef} width={200} height={200} style={{padding: "40px", backgroundColor: "white"}}></canvas>
+        <button onClick={descargarImagen}>Descargar QR</button>
       </div>
     </>
   )

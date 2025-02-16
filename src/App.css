@@ -1,23 +1,64 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 #root {
   max-width: 1380px;
   margin: 0 auto;
-  padding: 2rem;
   text-align: center;
+}
+
+#link-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+}
+
+#link, .option-container select, button {
+  outline: none;
+  text-decoration: none;
+  border: 1px solid rgb(45, 42, 47);
+  background-color: rgb(43, 42, 51);
+  padding: 0.5rem .6rem;
+  border-radius: 10px;
+}
+
+#link:focus, .option-container select:focus, button:active {
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+  border: 1px solid #007BFF;
+}
+
+#button-submit {
+  width: fit-content;
+}
+
+#canva-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1rem;
+  gap: 1rem;
 }
 
 #options-form {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  margin-bottom: 2rem;
+  align-items: center;
+  gap: 1rem;
 }
 
 .options-container {
   display: flex;
-  justify-content: space-around;
-  margin-top: 1rem;
   align-items: center;
+  width: 100%;
 }
+
+
 
 /* Estilo general para el select */
 #select-color {
@@ -72,9 +113,18 @@
 
 
 .option-container {
+  width: 33.33%;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  margin-top: 1rem;
   align-items: center;
+}
+
+@media (max-width: 768px) {
+
+  /* Estilos para pantallas pequeñas */
+  #options-form {
+    width: 100vw;
+    padding: 2vw 2vw 0 2vw;
+  }
 }
