@@ -1,4 +1,4 @@
-import { QREncodedType, QREncodedTypeFlag } from "../../types/QRTypes";
+import { QREncodedType, QREncodedTypeFlag } from "../../types/QRTypes"
 
 export const TYPE_INFORMATION_DICTIONARY: Record<QREncodedType, QREncodedTypeFlag> = {
   "numeric": "0001",

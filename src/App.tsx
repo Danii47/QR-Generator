@@ -95,28 +95,28 @@ function App() {
           ctx.beginPath()
           ctx.moveTo(px + radius, py)
           if ((newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (!newQRMatrix[rowIndex - 1] && !newQRMatrix[rowIndex][columnIndex + 1]) || (!newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex + 1])) {
-           ctx.arcTo(px + size, py, px + size, py + size, radius); // Bordo superior derecho
+           ctx.arcTo(px + size, py, px + size, py + size, radius)
           } else {
             ctx.lineTo(px + size, py)
             ctx.lineTo(px + size, py + radius)
           }
 
           if ((newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (!newQRMatrix[rowIndex + 1] && !newQRMatrix[rowIndex][columnIndex + 1]) || (!newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex + 1])) {
-            ctx.arcTo(px + size, py + size, px, py + size, radius); // Bordo inferior derecho
+            ctx.arcTo(px + size, py + size, px, py + size, radius)
           } else {
             ctx.lineTo(px + size, py + size)
             ctx.lineTo(px + radius, py + size)
           }
 
           if ((newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (!newQRMatrix[rowIndex + 1] && !newQRMatrix[rowIndex][columnIndex - 1]) || (!newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex - 1])) {
-            ctx.arcTo(px, py + size, px, py, radius); // Bordo inferior izquierdo
+            ctx.arcTo(px, py + size, px, py, radius)
           } else {
             ctx.lineTo(px, py + size)
             ctx.lineTo(px, py + radius)
           }
 
           if ((newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (!newQRMatrix[rowIndex - 1] && !newQRMatrix[rowIndex][columnIndex - 1]) || (!newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex - 1])) {
-            ctx.arcTo(px, py, px + radius, py, radius); // Bordo superior izquierdo
+            ctx.arcTo(px, py, px + radius, py, radius)
           } else {
             ctx.lineTo(px, py)
             ctx.lineTo(px + radius, py)

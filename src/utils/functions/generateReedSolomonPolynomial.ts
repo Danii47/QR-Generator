@@ -1,4 +1,4 @@
-function generateGFTables(): { gfExp: number[]; gfLog: number[] } {
+function generateGFTables(): { gfExp: number[], gfLog: number[] } {
   const gfExp: number[] = new Array(512)
   const gfLog: number[] = new Array(256)
   let x = 1
@@ -39,33 +39,33 @@ export function generateReedSolomonPolynomial(numBytes: number): number[] {
 
 export function divideReedSolomonPolynomials(dividend: number[], divisor: number[]): number[] {
   // Cantidad de bytes de corrección (grado del generador)
-  const numECC = divisor.length - 1;
+  const numECC = divisor.length - 1
 
   // Extender el dividendo: se multiplica por x^(numECC) (se añaden ceros al final)
-  const paddedDividend = dividend.concat(new Array(numECC).fill(0));
+  const paddedDividend = dividend.concat(new Array(numECC).fill(0))
 
   // Hacemos una copia (para trabajar sin modificar el original)
-  const remainder = paddedDividend.slice();
+  const remainder = paddedDividend.slice()
 
   // n: longitud total del polinomio extendido
   // k: longitud del polinomio divisor (grado + 1)
-  const n = remainder.length;
-  const k = divisor.length;
+  const n = remainder.length
+  const k = divisor.length
 
   // Algoritmo de división "long division" en GF(256)
   // Se recorre desde el coeficiente de mayor grado (índice 0) hasta el índice n - k
   for (let i = 0; i <= n - k; i++) {
     // coeficiente actual (líder) del resto
-    const coef = remainder[i];
+    const coef = remainder[i]
     if (coef !== 0) {
       // Para cada coeficiente del divisor, se "resta" (XOR) el divisor multiplicado
       // por el coeficiente actual, en GF(256)
       for (let j = 0; j < k; j++) {
-        remainder[i + j] ^= gfMultiply(divisor[j], coef);
+        remainder[i + j] ^= gfMultiply(divisor[j], coef)
       }
     }
   }
 
   // El resto (ECC) corresponde a los últimos numECC coeficientes
-  return remainder.slice(n - numECC);
+  return remainder.slice(n - numECC)
 }

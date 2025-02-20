@@ -1,4 +1,4 @@
-import { QREncodedType, QRVersion } from "../../types/QRTypes";
+import { QREncodedType, QRVersion } from "../../types/QRTypes"
 
 export function getLengthBits(version: QRVersion, encodedType: QREncodedType) {
   switch (encodedType) {

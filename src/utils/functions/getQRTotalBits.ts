@@ -1,7 +1,7 @@
-import { QRVersion } from "../../types/QRTypes";
-import { getCoordinateGrid } from "./getCoordinateGrid";
-import { getQRDimensions } from "./getQRDimensions";
-import { getVersionInformation } from "./getVersionInformation";
+import { QRVersion } from "../../types/QRTypes"
+import { getCoordinateGrid } from "./getCoordinateGrid"
+import { getQRDimensions } from "./getQRDimensions"
+import { getVersionInformation } from "./getVersionInformation"
 
 export function getQRTotalBits(version: QRVersion): { totalBits: number, totalBytes: number } {
   const QRDimension = getQRDimensions(version)

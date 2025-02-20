@@ -1,4 +1,4 @@
-import { QRInformation } from "../../types/QRTypes";
+import { QRInformation } from "../../types/QRTypes"
 
 // TODO: all versions <QRVersion> should be imported from the types
 export const QR_INFORMATION: Record<number, QRInformation> = {

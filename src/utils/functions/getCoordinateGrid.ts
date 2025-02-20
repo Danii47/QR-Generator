@@ -1,6 +1,6 @@
-import { QRVersion } from "../../types/QRTypes";
-import { getAlignSquaresCoords } from "./getAlignSquares";
-import { getQRDimensions } from "./getQRDimensions";
+import { QRVersion } from "../../types/QRTypes"
+import { getAlignSquaresCoords } from "./getAlignSquares"
+import { getQRDimensions } from "./getQRDimensions"
 
 export function getCoordinateGrid(version: QRVersion): number[][] {
   const coordsArray = getAlignSquaresCoords(version)

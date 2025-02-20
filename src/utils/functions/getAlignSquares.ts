@@ -1,5 +1,5 @@
-import { QRVersion } from "../../types/QRTypes";
-import { getQRDimensions } from "./getQRDimensions";
+import { QRVersion } from "../../types/QRTypes"
+import { getQRDimensions } from "./getQRDimensions"
 
 export function getAlignSquaresCoords(version: QRVersion): number[] {
   if (version === 1) return []

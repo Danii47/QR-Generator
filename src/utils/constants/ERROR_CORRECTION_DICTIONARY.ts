@@ -1,4 +1,4 @@
-import { QRErrorCorrection } from "../../types/QRTypes";
+import { QRErrorCorrection } from "../../types/QRTypes"
 
 export const ERROR_CORRECTION: QRErrorCorrection = {
   "L": "01",

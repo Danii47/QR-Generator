@@ -1,5 +1,5 @@
-import { QRMask } from "../../types/QRTypes";
-import { PATTERNS_FUNCTIONS } from "../constants/QR_PATTERNS";
+import { QRMask } from "../../types/QRTypes"
+import { PATTERNS_FUNCTIONS } from "../constants/QR_PATTERNS"
 
 export function applyPattern(matrix: number[][], pattern: QRMask): void {
   const patternFunction = PATTERNS_FUNCTIONS[pattern]

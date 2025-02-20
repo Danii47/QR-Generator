@@ -1,6 +1,6 @@
-import { QRVersion } from "../../types/QRTypes";
-import { POLYNOMIAL_GENERATOR_VERSION } from "../constants/POLYNOMIALS_GENERATORS";
-import { getCorrectionErrorBCH } from "./getCorrectionErrorBCH";
+import { QRVersion } from "../../types/QRTypes"
+import { POLYNOMIAL_GENERATOR_VERSION } from "../constants/POLYNOMIALS_GENERATORS"
+import { getCorrectionErrorBCH } from "./getCorrectionErrorBCH"
 
 export function getVersionInformation(version: QRVersion): string | null {
   if (version < 7) return null
