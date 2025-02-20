@@ -5,9 +5,14 @@
 }
 
 #root {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   max-width: 1380px;
   margin: 0 auto;
   text-align: center;
+  padding: 1rem 0;
 }
 
 #link-container {
@@ -24,6 +29,28 @@
   background-color: rgb(43, 42, 51);
   padding: 0.5rem .6rem;
   border-radius: 10px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+canvas {
+  padding: 20px;
+  background-color: white;
+  border-radius: 10px;
+}
+
+#canva-button-download {
+  display: none;
+}
+
+label {
+  font-size: 1.2rem;
+}
+
+button,
+select,
+input {
+  cursor: pointer;
+  font-size: .9rem;
 }
 
 #link:focus, .option-container select:focus, button:active {
@@ -33,6 +60,10 @@
 
 #button-submit {
   width: fit-content;
+}
+
+.option-container, #link-container {
+  gap: 6px;
 }
 
 #canva-container {
@@ -45,6 +76,7 @@
 }
 
 #options-form {
+  width: 50vw;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -58,60 +90,6 @@
   width: 100%;
 }
 
-
-
-/* Estilo general para el select */
-#select-color {
-  appearance: none;
-  /* Elimina el estilo predeterminado */
-  background-color: #202020;
-  /* Fondo claro */
-  border: 2px solid #adadad;
-  /* Borde gris */
-  border-radius: 25px;
-  /* Bordes redondeados */
-  padding: 5px 7px;
-  /* Espaciado interno */
-  font-size: 16px;
-  /* Tamaño de fuente */
-  font-family: 'Arial', sans-serif;
-  /* Fuente */
-  color: #333;
-  /* Color del texto */
-  cursor: pointer;
-  /* Cambia el cursor al pasar por encima */
-  outline: none;
-  /* Elimina el contorno de enfoque */
-  transition: all 0.3s ease;
-  /* Transición suave */
-}
-
-/* Estilo cuando el #select-color está en foco (cuando el usuario hace clic) */
-#select-color:focus {
-  border-color: #007BFF;
-  /* Borde azul al enfocar */
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-  /* Sombra sutil */
-}
-
-/* Flecha personalizada */
-#select-color::-ms-expand {
-  display: none;
-  /* Ocultar la flecha predeterminada en IE */
-}
-
-#select-color::after {
-  content: "▼";
-  /* Añade una flecha hacia abajo */
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 18px;
-  pointer-events: none;
-}
-
-
 .option-container {
   width: 33.33%;
   display: flex;
@@ -121,8 +99,6 @@
 }
 
 @media (max-width: 768px) {
-
-  /* Estilos para pantallas pequeñas */
   #options-form {
     width: 100vw;
     padding: 2vw 2vw 0 2vw;
