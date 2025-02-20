@@ -19,15 +19,16 @@ function App() {
   const textInputRef = useRef<HTMLInputElement>(null)
   const correctionLevelRef = useRef<HTMLSelectElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [fillCellsColor, setFillCellsColor] = useState("black")
+  const downloadButtonRef = useRef<HTMLButtonElement>(null)
+  const [blackCellsColor, setBlackCellsColor] = useState("black")
   const [bitsType, setBitsType] = useState<QRBitsType>("square")
 
   const COLORS: Record<number, string> = {
     0: "white", // Empty
     2: "white", // Finder cell
-    3: fillCellsColor, // Filled cell
+    3: blackCellsColor, // Filled cell
     4: "white", // White cell
-    5: fillCellsColor // Black cell
+    5: blackCellsColor // Black cell
   }
 
   function fillNumber(version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string) {
@@ -50,9 +51,10 @@ function App() {
 
           newQRMatrix[j][k] = binaryString.charAt(0) === "0" ? 4 : 5
           
-          if (j >= 10 && j < 15 && k >= 10 && k < 15) {
-            newQRMatrix[j][k] = 2
-          }
+          // if (j >= 10 && j < 15 && k >= 10 && k < 15) {
+          //   newQRMatrix[j][k] = 2
+          // }
+
           binaryString = binaryString.substring(1)
         }
       }
@@ -68,45 +70,78 @@ function App() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    canvas.width = newQRMatrix[0].length * 20
-    canvas.height = newQRMatrix.length * 20
+    let size: number
 
-    newQRMatrix.forEach((fila, y) => {
-      fila.forEach((valor, x) => {
-        ctx.fillStyle = COLORS[valor]
+    if (window.innerWidth < window.innerHeight)
+      size = Math.floor((window.innerWidth / newQRMatrix[0].length) * 0.8)
+    else 
+      size = Math.floor((window.innerHeight / newQRMatrix[0].length) * 0.6)
+
+    canvas.width = newQRMatrix[0].length * size
+    canvas.height = newQRMatrix.length * size
+
+    newQRMatrix.forEach((row, rowIndex) => {
+      row.forEach((value, columnIndex) => {
+        ctx.fillStyle = COLORS[value]
         if (bitsType === "circle") {
           ctx.beginPath()
-          ctx.arc(x * 20 + 10, y * 20 + 10, 10, 0, 2 * Math.PI)
+          ctx.arc(columnIndex * size + (size / 2), rowIndex * size + (size / 2), size / 2, 0, 2 * Math.PI)
           ctx.fill()
           ctx.closePath()
         } else if (bitsType === "rounded") {
-          const px = x * 20;
-          const py = y * 20;
-          ctx.beginPath();
-          ctx.moveTo(px, py);
-          ctx.lineTo(px + 20 * 0.75, py);
-          ctx.arcTo(px + 20, py, px + 20, py + 20 * 0.25, 20);
-          ctx.lineTo(px + 20, py + 20 * 0.75);
-          ctx.arcTo(px + 20, py + 20, px + 20 * 0.75, py + 20, 20 * 0.25);
-          ctx.lineTo(px + 20 * 0.25, py + 20);
-          ctx.lineTo(px, py + 20);
-          ctx.closePath();
-          ctx.fill();
+          const px = columnIndex * size
+          const py = rowIndex * size
+          const radius = size / 2
+          ctx.beginPath()
+          ctx.moveTo(px + radius, py)
+          if ((newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (!newQRMatrix[rowIndex - 1] && !newQRMatrix[rowIndex][columnIndex + 1]) || (!newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex + 1])) {
+           ctx.arcTo(px + size, py, px + size, py + size, radius); // Bordo superior derecho
+          } else {
+            ctx.lineTo(px + size, py)
+            ctx.lineTo(px + size, py + radius)
+          }
+
+          if ((newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (!newQRMatrix[rowIndex + 1] && !newQRMatrix[rowIndex][columnIndex + 1]) || (!newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex + 1])) {
+            ctx.arcTo(px + size, py + size, px, py + size, radius); // Bordo inferior derecho
+          } else {
+            ctx.lineTo(px + size, py + size)
+            ctx.lineTo(px + radius, py + size)
+          }
+
+          if ((newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (!newQRMatrix[rowIndex + 1] && !newQRMatrix[rowIndex][columnIndex - 1]) || (!newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex - 1])) {
+            ctx.arcTo(px, py + size, px, py, radius); // Bordo inferior izquierdo
+          } else {
+            ctx.lineTo(px, py + size)
+            ctx.lineTo(px, py + radius)
+          }
+
+          if ((newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (!newQRMatrix[rowIndex - 1] && !newQRMatrix[rowIndex][columnIndex - 1]) || (!newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex - 1])) {
+            ctx.arcTo(px, py, px + radius, py, radius); // Bordo superior izquierdo
+          } else {
+            ctx.lineTo(px, py)
+            ctx.lineTo(px + radius, py)
+          }
+
+          ctx.closePath()
+          ctx.fill()
         } else {
-          ctx.fillRect(x * 20, y * 20, 20, 20)
+          ctx.fillRect(columnIndex * size, rowIndex * size, size, size)
         }
       })
     })
+
+    if (downloadButtonRef?.current)
+      downloadButtonRef.current.style.display = "block"
   }
 
 
-  const descargarImagen = () => {
-    const canvas = canvasRef.current;
+  const downloadImage = () => {
+    const canvas = canvasRef.current
     if (!canvas) return
 
-    const link = document.createElement('a')
-    link.href = canvas.toDataURL('image/png')
-    link.download = 'qr.png'
+    const link = document.createElement("a")
+    link.href = canvas.toDataURL("image/png")
+    link.download = "QR.png"
     link.click()
   }
 
@@ -179,8 +214,8 @@ function App() {
             </select>
           </div>
           <div className="option-container">
-            <label htmlFor="select-color">Color</label>
-            <input id="select-color" type="color" value={fillCellsColor} onChange={(event) => setFillCellsColor(event.target.value)} />
+            <label htmlFor="select-color-1">Color</label>
+            <input className="select-color" id="select-color-1" type="color" value={blackCellsColor} onChange={(event) => setBlackCellsColor(event.target.value)} />
           </div>
           <div className="option-container">
             <label htmlFor="qr-correction-level">Corrección</label>
@@ -195,8 +230,8 @@ function App() {
         <button type="submit" id="button-submit">Generar</button>
       </form>
       <div id="canva-container">
-        <canvas ref={canvasRef} width={200} height={200} style={{padding: "40px", backgroundColor: "white"}}></canvas>
-        <button onClick={descargarImagen}>Descargar QR</button>
+        <canvas ref={canvasRef} width={200} height={200}></canvas>
+        <button ref={downloadButtonRef} id="canva-button-download" onClick={downloadImage}>Descargar QR</button>
       </div>
     </>
   )
