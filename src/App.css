@@ -344,6 +344,86 @@ canvas {
   border-color: #fff;
 }
 
+.label-with-tooltip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.label-with-tooltip label {
+  margin-bottom: 0;
+  cursor: default;
+}
+
+.tooltip-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid #666;
+  color: #888;
+  font-size: 0.75rem;
+  font-family: serif;
+  cursor: help;
+  transition: all 0.2s;
+}
+
+.tooltip-container:hover .info-icon {
+  border-color: #646cff;
+  color: #fff;
+  background-color: rgba(100, 108, 255, 0.2);
+}
+
+.tooltip-text {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  bottom: 140%;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  background-color: #252525;
+  color: #bbb;
+  text-align: center;
+  padding: 0.8rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  width: 300px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.6);
+  border: 1px solid #444;
+  z-index: 100;
+  pointer-events: none;
+  font-weight: 400;
+  text-transform: none;
+  line-height: 1.4;
+  transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: #252525 transparent transparent transparent;
+}
+
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 @keyframes popIn {
   from {
     opacity: 0;
