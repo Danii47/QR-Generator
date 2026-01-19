@@ -1,7 +1,7 @@
 import { useRef, useState } from "react"
 import "./App.css"
 import { createStartMatrix } from "./utils/functions/createStartMatrix"
-import { QRBitsType, QRErrorCorrectionKey, QRMask, QRVersion } from "./types/QRTypes"
+import { QRErrorCorrectionKey, QRMask, QRVersion, QRBitsType } from "./types/QRTypes"
 import { QR_INFORMATION } from "./utils/constants/QR_INFORMATION"
 import { TYPE_INFORMATION_DICTIONARY } from "./utils/constants/TYPE_INFORMATION_DICTIONARY"
 import { applyPattern } from "./utils/functions/applyPattern"
@@ -19,8 +19,9 @@ function App() {
   const textInputRef = useRef<HTMLInputElement>(null)
   const correctionLevelRef = useRef<HTMLSelectElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const downloadButtonRef = useRef<HTMLButtonElement>(null)
-  const [blackCellsColor, setBlackCellsColor] = useState("black")
+
+  const [isGenerated, setIsGenerated] = useState(false)
+  const [blackCellsColor, setBlackCellsColor] = useState("#000000")
   const [bitsType, setBitsType] = useState<QRBitsType>("square")
 
   const COLORS: Record<number, string> = {
@@ -34,31 +35,20 @@ function App() {
   function fillNumber(version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string) {
 
     const newQRMatrix = createStartMatrix(version, correctionLevel, MASK)
-
     let cont = false
 
     for (let i = newQRMatrix[0].length - 1; i >= 0; i -= 2) {
       if (i === 6) i--
-
       const rowIndices = cont ? [...Array(newQRMatrix.length).keys()] : [...Array(newQRMatrix.length).keys()].reverse()
 
       for (const j of rowIndices) {
         for (let k = i; k > i - 2; k--) {
           if (!binaryString) break
-
-          if (newQRMatrix[j][k] !== 0)
-            continue
-
+          if (newQRMatrix[j][k] !== 0) continue
           newQRMatrix[j][k] = binaryString.charAt(0) === "0" ? 4 : 5
-          
-          // if (j >= 10 && j < 15 && k >= 10 && k < 15) {
-          //   newQRMatrix[j][k] = 2
-          // }
-
           binaryString = binaryString.substring(1)
         }
       }
-
       cont = !cont
     }
 
@@ -67,18 +57,19 @@ function App() {
     const canvas = canvasRef.current
     if (!canvas) return
 
+    setIsGenerated(true)
+
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    let size: number
-
-    if (window.innerWidth < window.innerHeight)
-      size = Math.floor((window.innerWidth / newQRMatrix[0].length) * 0.8)
-    else 
-      size = Math.floor((window.innerHeight / newQRMatrix[0].length) * 0.6)
+    const pixelSize = 40
+    const size = pixelSize
 
     canvas.width = newQRMatrix[0].length * size
     canvas.height = newQRMatrix.length * size
+
+    ctx.fillStyle = "white"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     newQRMatrix.forEach((row, rowIndex) => {
       row.forEach((value, columnIndex) => {
@@ -94,8 +85,9 @@ function App() {
           const radius = size / 2
           ctx.beginPath()
           ctx.moveTo(px + radius, py)
+
           if ((newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (!newQRMatrix[rowIndex - 1] && !newQRMatrix[rowIndex][columnIndex + 1]) || (!newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex + 1])) {
-           ctx.arcTo(px + size, py, px + size, py + size, radius)
+            ctx.arcTo(px + size, py, px + size, py + size, radius)
           } else {
             ctx.lineTo(px + size, py)
             ctx.lineTo(px + size, py + radius)
@@ -129,11 +121,7 @@ function App() {
         }
       })
     })
-
-    if (downloadButtonRef?.current)
-      downloadButtonRef.current.style.display = "block"
   }
-
 
   const downloadImage = () => {
     const canvas = canvasRef.current
@@ -141,22 +129,17 @@ function App() {
 
     const link = document.createElement("a")
     link.href = canvas.toDataURL("image/png")
-    link.download = "QR.png"
+    link.download = `QR-${Date.now()}.png`
     link.click()
   }
 
   function createQR(text: string, correctionLevel: QRErrorCorrectionKey) {
     const encodedType = "byte"
     const binaryText = stringToBinary(text)
-
     const QRVersion = getQRVersion(binaryText.length, correctionLevel, encodedType)
-
     const textLengthBinary = text.length.toString(2).padStart(getLengthBits(QRVersion, encodedType), "0")
-
     const codifiedData = TYPE_INFORMATION_DICTIONARY[encodedType] + textLengthBinary + binaryText + FINAL_BLOCK
-
     const { dataBits, numberOfBlocksInGroupOne, numberOfBlocksInGroupTwo } = QR_INFORMATION[QRVersion].eccLevels[correctionLevel]
-
     const totalDataString = codifiedData.padEnd(dataBits, COMPLETE_BYTES)
 
     const dataBlocks = new Array(numberOfBlocksInGroupOne + numberOfBlocksInGroupTwo)
@@ -166,14 +149,13 @@ function App() {
     for (let i = 0; i < dataBlocks.length; i++) {
       const start = i * blockCapacitieInGroupOne + (i > numberOfBlocksInGroupOne ? 8 * (i - numberOfBlocksInGroupOne) : 0)
       const end = (i + 1) * blockCapacitieInGroupOne + (i >= numberOfBlocksInGroupOne ? 8 * (i - numberOfBlocksInGroupOne + 1) : 0)
-
+      
       dataBlocks[i] = totalDataString.substring(start, end)
       errorBlocks[i] = generateCorrectionErrorData(QRVersion, correctionLevel, dataBlocks[i]).match(/.{1,8}/g)
       dataBlocks[i] = dataBlocks[i].match(/.{1,8}/g)
     }
 
     let dataAndCorrectionErrorString = ""
-
     for (let i = 0; i < dataBlocks[dataBlocks.length - 1].length; i++) {
       for (let j = 0; j < dataBlocks.length; j++) {
         if (dataBlocks[j][i] !== undefined)
@@ -198,42 +180,85 @@ function App() {
   }
 
   return (
-    <>
-      <form id="options-form" onSubmit={handleSubmit}>
-        <div id="link-container">
-          <label htmlFor="link">Escribe la URL</label>
-          <input id="link" type="text" ref={textInputRef} placeholder="https://mipaginaweb.com" />
-        </div>
-        <div className="options-container">
-          <div className="option-container">
-            <label htmlFor="qr-bits-type">Estilo</label>
-            <select id="qr-bits-type" onChange={(event) => setBitsType(event.target.value as QRBitsType)}>
-              <option value="square">Cuadrados</option>
-              <option value="circle">Circulos</option>
-              <option value="rounded">Redondeados</option>
-            </select>
+    <div id="main-wrapper">
+      <div id="card">
+        {/* CONFIGURATION */}
+        <section className="column left-column">
+          <div className="header">
+            <h1 className="title">Generador QR</h1>
+            <p className="subtitle">Crea códigos QR personalizados al instante.</p>
           </div>
-          <div className="option-container">
-            <label htmlFor="select-color-1">Color</label>
-            <input className="select-color" id="select-color-1" type="color" value={blackCellsColor} onChange={(event) => setBlackCellsColor(event.target.value)} />
+
+          <form id="options-form" onSubmit={handleSubmit}>
+            <div className="input-group">
+              <label htmlFor="link">URL o Texto</label>
+              <input
+                id="link"
+                type="text"
+                ref={textInputRef}
+                placeholder="https://tuweb.com"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="options-row">
+              <div className="input-group">
+                <label htmlFor="qr-bits-type">Estilo</label>
+                <select id="qr-bits-type" onChange={(event) => setBitsType(event.target.value as QRBitsType)}>
+                  <option value="square">Cuadrados</option>
+                  <option value="circle">Círculos</option>
+                  <option value="rounded">Redondeados</option>
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="qr-correction-level">Corrección</label>
+                <select id="qr-correction-level" ref={correctionLevelRef}>
+                  <option value="L">Baja (L)</option>
+                  <option value="M">Media (M)</option>
+                  <option value="Q">Alta (Q)</option>
+                  <option value="H">Máxima (H)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="select-color-1">Color de Puntos</label>
+              <div className="color-input-wrapper">
+                <div className="color-preview" style={{ backgroundColor: blackCellsColor }}></div>
+                <input id="select-color-1" type="color" value={blackCellsColor} onChange={(event) => setBlackCellsColor(event.target.value)} />
+                <span className="color-value">{blackCellsColor.toUpperCase()}</span>
+              </div>
+            </div>
+
+            <button type="submit" id="button-submit">Generar QR</button>
+          </form>
+        </section>
+
+        {/* PREVIEW */}
+        <section className="column right-column">
+          <div id="preview-container">
+            <div className={`placeholder-qr ${isGenerated ? 'hidden' : ''}`}>
+              <div className="placeholder-icon"></div>
+              <p>Tu código QR aparecerá aquí</p>
+            </div>
+
+            <canvas
+              ref={canvasRef}
+              width={0}
+              height={0}
+              className={!isGenerated ? 'hidden-canvas' : ''}
+            ></canvas>
           </div>
-          <div className="option-container">
-            <label htmlFor="qr-correction-level">Corrección</label>
-            <select id="qr-correction-level" ref={correctionLevelRef}>
-              <option value="L">Muy bajo (L)</option>
-              <option value="M">Bajo (M)</option>
-              <option value="Q">Medio (Q)</option>
-              <option value="H">Alto (H)</option>
-            </select>
-          </div>
-        </div>
-        <button type="submit" id="button-submit">Generar</button>
-      </form>
-      <div id="canva-container">
-        <canvas ref={canvasRef} width={200} height={200}></canvas>
-        <button ref={downloadButtonRef} id="canva-button-download" onClick={downloadImage}>Descargar QR</button>
+
+          {isGenerated && (
+            <button id="canva-button-download" onClick={downloadImage}>
+              Descargar PNG
+            </button>
+          )}
+        </section>
       </div>
-    </>
+    </div>
   )
 }
 
