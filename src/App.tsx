@@ -289,7 +289,19 @@ function App() {
               </div>
 
               <div className="input-group">
-                <label htmlFor="qr-correction-level">Corrección</label>
+                <div className="label-with-tooltip">
+                  <label htmlFor="qr-correction-level">Corrección</label>
+                  <div className="tooltip-container">
+                    <span className="info-icon">i</span>
+                    <div className="tooltip-text">
+                      Capacidad del QR para ser leído si se daña o se tapa (por ejemplo, con un logo).
+                      <br />
+                      El porcentaje indica la cantidad de datos que pueden recuperarse.
+                      <br /><br />
+                      <span style={{ color: '#fff' }}>L (7%)</span> - <span style={{ color: '#fff' }}>M (15%)</span> - <span style={{ color: '#fff' }}>Q (25%)</span> - <span style={{ color: '#fff' }}>H (30%)</span>
+                    </div>
+                  </div>
+                </div>
                 <select id="qr-correction-level" ref={correctionLevelRef} defaultValue="H">
                   <option value="L">Baja (L)</option>
                   <option value="M">Media (M)</option>
