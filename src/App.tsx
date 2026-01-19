@@ -24,12 +24,37 @@ function App() {
   const [blackCellsColor, setBlackCellsColor] = useState("#000000")
   const [bitsType, setBitsType] = useState<QRBitsType>("square")
 
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const logoImageRef = useRef<HTMLImageElement | null>(null)
+
   const COLORS: Record<number, string> = {
     0: "white", // Empty
     2: "white", // Finder cell
     3: blackCellsColor, // Filled cell
     4: "white", // White cell
     5: blackCellsColor // Black cell
+  }
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setLogoFile(file)
+
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const img = new Image()
+        img.onload = () => {
+          logoImageRef.current = img
+        }
+        img.src = event.target?.result as string
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null)
+    logoImageRef.current = null
   }
 
   function fillNumber(version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string) {
@@ -62,17 +87,42 @@ function App() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const pixelSize = 40
+    const pixelSize = 30
     const size = pixelSize
+    const matrixSize = newQRMatrix.length
 
-    canvas.width = newQRMatrix[0].length * size
-    canvas.height = newQRMatrix.length * size
+    canvas.width = matrixSize * size
+    canvas.height = matrixSize * size
 
     ctx.fillStyle = "white"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
+    let logoZoneSize = 0
+    let centerStart = 0
+    let centerEnd = 0
+
+    if (logoImageRef.current) {
+      const rawSize = Math.floor(matrixSize * 0.22)
+      logoZoneSize = rawSize % 2 === 0 ? rawSize + 1 : rawSize
+
+      if (logoZoneSize < 5) logoZoneSize = 5
+
+      const center = Math.floor(matrixSize / 2)
+      const halfZone = Math.floor(logoZoneSize / 2)
+
+      centerStart = center - halfZone
+      centerEnd = center + halfZone
+    }
+
     newQRMatrix.forEach((row, rowIndex) => {
       row.forEach((value, columnIndex) => {
+
+        if (logoImageRef.current) {
+          if (rowIndex >= centerStart && rowIndex <= centerEnd && columnIndex >= centerStart && columnIndex <= centerEnd) {
+            return
+          }
+        }
+
         ctx.fillStyle = COLORS[value]
         if (bitsType === "circle") {
           ctx.beginPath()
@@ -121,6 +171,35 @@ function App() {
         }
       })
     })
+
+    if (logoImageRef.current) {
+      const img = logoImageRef.current
+
+      const logoModulePadding = 1
+      const availableModules = logoZoneSize - (logoModulePadding * 2)
+      const availableSizePx = availableModules * size
+
+      const centerX = (canvas.width / 2)
+      const centerY = (canvas.height / 2)
+
+      const aspectRatio = img.width / img.height
+      let drawWidth = availableSizePx
+      let drawHeight = availableSizePx
+
+      if (aspectRatio > 1) {
+        drawHeight = availableSizePx / aspectRatio
+      } else {
+        drawWidth = availableSizePx * aspectRatio
+      }
+
+      ctx.drawImage(
+        img,
+        centerX - (drawWidth / 2),
+        centerY - (drawHeight / 2),
+        drawWidth,
+        drawHeight
+      )
+    }
   }
 
   const downloadImage = () => {
@@ -149,7 +228,6 @@ function App() {
     for (let i = 0; i < dataBlocks.length; i++) {
       const start = i * blockCapacitieInGroupOne + (i > numberOfBlocksInGroupOne ? 8 * (i - numberOfBlocksInGroupOne) : 0)
       const end = (i + 1) * blockCapacitieInGroupOne + (i >= numberOfBlocksInGroupOne ? 8 * (i - numberOfBlocksInGroupOne + 1) : 0)
-      
       dataBlocks[i] = totalDataString.substring(start, end)
       errorBlocks[i] = generateCorrectionErrorData(QRVersion, correctionLevel, dataBlocks[i]).match(/.{1,8}/g)
       dataBlocks[i] = dataBlocks[i].match(/.{1,8}/g)
@@ -162,7 +240,6 @@ function App() {
           dataAndCorrectionErrorString += dataBlocks[j][i]
       }
     }
-
     for (let i = 0; i < errorBlocks[0].length; i++) {
       for (let j = 0; j < errorBlocks.length; j++) {
         dataAndCorrectionErrorString += errorBlocks[j][i]
@@ -213,12 +290,38 @@ function App() {
 
               <div className="input-group">
                 <label htmlFor="qr-correction-level">Corrección</label>
-                <select id="qr-correction-level" ref={correctionLevelRef}>
+                <select id="qr-correction-level" ref={correctionLevelRef} defaultValue="H">
                   <option value="L">Baja (L)</option>
                   <option value="M">Media (M)</option>
                   <option value="Q">Alta (Q)</option>
                   <option value="H">Máxima (H)</option>
                 </select>
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="logo-upload">Logo (Opcional)</label>
+              <div className="file-input-wrapper">
+                <input
+                  id="logo-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden-file-input"
+                />
+                <label htmlFor="logo-upload" className="file-label">
+                  {logoFile ? (
+                    <span className="file-name">{logoFile.name}</span>
+                  ) : (
+                    <span className="file-placeholder">Seleccionar imagen...</span>
+                  )}
+                  <span className="upload-icon">📁</span>
+                </label>
+                {logoFile && (
+                  <button type="button" className="remove-file-btn" onClick={handleRemoveLogo} title="Quitar logo">
+                    ✕
+                  </button>
+                )}
               </div>
             </div>
 
