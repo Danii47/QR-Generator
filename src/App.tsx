@@ -24,7 +24,6 @@ function App() {
   const [blackCellsColor, setBlackCellsColor] = useState("#000000")
   const [bitsType, setBitsType] = useState<QRBitsType>("square")
 
-  // Estado para la máscara actual (índice del array MASKS)
   const [maskIndex, setMaskIndex] = useState(0)
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -38,7 +37,6 @@ function App() {
     5: blackCellsColor // Black cell
   }
 
-  // Regenerar QR cuando cambia la máscara (si ya está generado)
   useEffect(() => {
     if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
       createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[maskIndex])
@@ -55,7 +53,6 @@ function App() {
         const img = new Image()
         img.onload = () => {
           logoImageRef.current = img
-          // Si ya hay QR generado, regenerarlo para ajustar la zona del logo si fuera necesario
           if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
             createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[maskIndex])
           }
@@ -69,9 +66,7 @@ function App() {
   const handleRemoveLogo = () => {
     setLogoFile(null)
     logoImageRef.current = null
-    // Regenerar para quitar el hueco blanco
     if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
-      // Pequeño timeout para asegurar que el estado se limpia antes de pintar
       setTimeout(() => {
         createQR(textInputRef.current!.value, correctionLevelRef.current!.value as QRErrorCorrectionKey, MASKS[maskIndex])
       }, 0)
@@ -203,14 +198,11 @@ function App() {
 
     if (logoImageRef.current) {
       const img = logoImageRef.current
-
       const logoModulePadding = 1
       const availableModules = logoZoneSize - (logoModulePadding * 2)
       const availableSizePx = availableModules * size
-
       const centerX = (canvas.width / 2)
       const centerY = (canvas.height / 2)
-
       const aspectRatio = img.width / img.height
       let drawWidth = availableSizePx
       let drawHeight = availableSizePx
@@ -234,7 +226,6 @@ function App() {
   const downloadImage = () => {
     const canvas = canvasRef.current
     if (!canvas) return
-
     const link = document.createElement("a")
     link.href = canvas.toDataURL("image/png")
     link.download = `QR-${Date.now()}.png`
@@ -281,7 +272,6 @@ function App() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
-      // Al generar uno nuevo, reseteamos la máscara al 000 (índice 0)
       setMaskIndex(0)
       createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[0])
     }
@@ -384,9 +374,11 @@ function App() {
         {/* PREVIEW */}
         <section className="column right-column">
           <div id="preview-container">
-            {/* Máscara Navigation Arrows */}
             {isGenerated && (
               <>
+                <div className="qr-mask-counter">
+                  {maskIndex + 1} / {MASKS.length}
+                </div>
                 <button className="mask-arrow arrow-left" onClick={handlePrevMask} title="Máscara anterior">
                   &#8249;
                 </button>
