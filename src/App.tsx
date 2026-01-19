@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect, useCallback } from "react"
 import "./App.css"
 import { createStartMatrix } from "./utils/functions/createStartMatrix"
 import { QRErrorCorrectionKey, QRMask, QRVersion, QRBitsType } from "./types/QRTypes"
@@ -28,20 +28,6 @@ function App() {
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const logoImageRef = useRef<HTMLImageElement | null>(null)
-
-  const COLORS: Record<number, string> = {
-    0: "white", // Empty
-    2: "white", // Finder cell
-    3: blackCellsColor, // Filled cell
-    4: "white", // White cell
-    5: blackCellsColor // Black cell
-  }
-
-  useEffect(() => {
-    if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
-      createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[maskIndex])
-    }
-  }, [maskIndex])
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -81,7 +67,14 @@ function App() {
     setMaskIndex((prev) => (prev + 1) % MASKS.length)
   }
 
-  function fillNumber(version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string, currentMask: QRMask) {
+  const fillNumber = useCallback((version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string, currentMask: QRMask) => {
+    const COLORS: Record<number, string> = {
+      0: "white", // Empty
+      2: "white", // Finder cell
+      3: blackCellsColor, // Filled cell
+      4: "white", // White cell
+      5: blackCellsColor // Black cell
+    }
 
     const newQRMatrix = createStartMatrix(version, correctionLevel, currentMask)
     let cont = false
@@ -221,7 +214,7 @@ function App() {
         drawHeight
       )
     }
-  }
+  }, [bitsType, blackCellsColor])
 
   const downloadImage = () => {
     const canvas = canvasRef.current
@@ -232,7 +225,7 @@ function App() {
     link.click()
   }
 
-  function createQR(text: string, correctionLevel: QRErrorCorrectionKey, mask: QRMask) {
+  const createQR = useCallback((text: string, correctionLevel: QRErrorCorrectionKey, mask: QRMask) => {
     const encodedType = "byte"
     const binaryText = stringToBinary(text)
     const QRVersion = getQRVersion(binaryText.length, correctionLevel, encodedType)
@@ -267,7 +260,13 @@ function App() {
     }
 
     fillNumber(QRVersion, correctionLevel, dataAndCorrectionErrorString, mask)
-  }
+  }, [fillNumber])
+
+  useEffect(() => {
+    if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
+      createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[maskIndex])
+    }
+  }, [maskIndex, createQR, isGenerated])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
