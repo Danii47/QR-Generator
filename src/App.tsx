@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import "./App.css"
 import { createStartMatrix } from "./utils/functions/createStartMatrix"
 import { QRErrorCorrectionKey, QRMask, QRVersion, QRBitsType } from "./types/QRTypes"
@@ -12,7 +12,7 @@ import { getQRVersion } from "./utils/functions/getQRVersion"
 import { getLengthBits } from "./utils/functions/getLengthBits"
 import { FINAL_BLOCK } from "./utils/constants/FINAL_BLOCK"
 
-const MASK: QRMask = "100"
+const MASKS: QRMask[] = ["000", "001", "010", "011", "100", "101", "110", "111"]
 
 function App() {
 
@@ -23,6 +23,9 @@ function App() {
   const [isGenerated, setIsGenerated] = useState(false)
   const [blackCellsColor, setBlackCellsColor] = useState("#000000")
   const [bitsType, setBitsType] = useState<QRBitsType>("square")
+
+  // Estado para la máscara actual (índice del array MASKS)
+  const [maskIndex, setMaskIndex] = useState(0)
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const logoImageRef = useRef<HTMLImageElement | null>(null)
@@ -35,6 +38,13 @@ function App() {
     5: blackCellsColor // Black cell
   }
 
+  // Regenerar QR cuando cambia la máscara (si ya está generado)
+  useEffect(() => {
+    if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
+      createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[maskIndex])
+    }
+  }, [maskIndex])
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
@@ -45,6 +55,10 @@ function App() {
         const img = new Image()
         img.onload = () => {
           logoImageRef.current = img
+          // Si ya hay QR generado, regenerarlo para ajustar la zona del logo si fuera necesario
+          if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
+            createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[maskIndex])
+          }
         }
         img.src = event.target?.result as string
       }
@@ -55,11 +69,26 @@ function App() {
   const handleRemoveLogo = () => {
     setLogoFile(null)
     logoImageRef.current = null
+    // Regenerar para quitar el hueco blanco
+    if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
+      // Pequeño timeout para asegurar que el estado se limpia antes de pintar
+      setTimeout(() => {
+        createQR(textInputRef.current!.value, correctionLevelRef.current!.value as QRErrorCorrectionKey, MASKS[maskIndex])
+      }, 0)
+    }
   }
 
-  function fillNumber(version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string) {
+  const handlePrevMask = () => {
+    setMaskIndex((prev) => (prev - 1 + MASKS.length) % MASKS.length)
+  }
 
-    const newQRMatrix = createStartMatrix(version, correctionLevel, MASK)
+  const handleNextMask = () => {
+    setMaskIndex((prev) => (prev + 1) % MASKS.length)
+  }
+
+  function fillNumber(version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string, currentMask: QRMask) {
+
+    const newQRMatrix = createStartMatrix(version, correctionLevel, currentMask)
     let cont = false
 
     for (let i = newQRMatrix[0].length - 1; i >= 0; i -= 2) {
@@ -77,7 +106,7 @@ function App() {
       cont = !cont
     }
 
-    applyPattern(newQRMatrix, MASK)
+    applyPattern(newQRMatrix, currentMask)
 
     const canvas = canvasRef.current
     if (!canvas) return
@@ -212,7 +241,7 @@ function App() {
     link.click()
   }
 
-  function createQR(text: string, correctionLevel: QRErrorCorrectionKey) {
+  function createQR(text: string, correctionLevel: QRErrorCorrectionKey, mask: QRMask) {
     const encodedType = "byte"
     const binaryText = stringToBinary(text)
     const QRVersion = getQRVersion(binaryText.length, correctionLevel, encodedType)
@@ -246,13 +275,15 @@ function App() {
       }
     }
 
-    fillNumber(QRVersion, correctionLevel, dataAndCorrectionErrorString)
+    fillNumber(QRVersion, correctionLevel, dataAndCorrectionErrorString, mask)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
-      createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey)
+      // Al generar uno nuevo, reseteamos la máscara al 000 (índice 0)
+      setMaskIndex(0)
+      createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[0])
     }
   }
 
@@ -353,6 +384,18 @@ function App() {
         {/* PREVIEW */}
         <section className="column right-column">
           <div id="preview-container">
+            {/* Máscara Navigation Arrows */}
+            {isGenerated && (
+              <>
+                <button className="mask-arrow arrow-left" onClick={handlePrevMask} title="Máscara anterior">
+                  &#8249;
+                </button>
+                <button className="mask-arrow arrow-right" onClick={handleNextMask} title="Siguiente máscara">
+                  &#8250;
+                </button>
+              </>
+            )}
+
             <div className={`placeholder-qr ${isGenerated ? 'hidden' : ''}`}>
               <div className="placeholder-icon"></div>
               <p>Tu código QR aparecerá aquí</p>
