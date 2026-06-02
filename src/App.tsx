@@ -28,6 +28,7 @@ function App() {
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const logoImageRef = useRef<HTMLImageElement | null>(null)
+  const [qrMatrix, setQrMatrix] = useState<number[][]>([])
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -131,6 +132,8 @@ function App() {
       centerEnd = center + halfZone
     }
 
+    setQrMatrix(newQRMatrix.map(row => [...row]))
+
     newQRMatrix.forEach((row, rowIndex) => {
       row.forEach((value, columnIndex) => {
 
@@ -146,6 +149,36 @@ function App() {
           ctx.arc(columnIndex * size + (size / 2), rowIndex * size + (size / 2), size / 2, 0, 2 * Math.PI)
           ctx.fill()
           ctx.closePath()
+        } else if (bitsType === "dot") {
+          ctx.beginPath()
+          ctx.arc(columnIndex * size + (size / 2), rowIndex * size + (size / 2), size * 0.35, 0, 2 * Math.PI)
+          ctx.fill()
+          ctx.closePath()
+        } else if (bitsType === "diamond") {
+          ctx.beginPath()
+          const cx = columnIndex * size + (size / 2)
+          const cy = rowIndex * size + (size / 2)
+          const r = size / 2
+          ctx.moveTo(cx, cy - r)
+          ctx.lineTo(cx + r, cy)
+          ctx.lineTo(cx, cy + r)
+          ctx.lineTo(cx - r, cy)
+          ctx.closePath()
+          ctx.fill()
+        } else if (bitsType === "star") {
+          ctx.beginPath()
+          const cx = columnIndex * size + (size / 2)
+          const cy = rowIndex * size + (size / 2)
+          const outerRadius = size / 2
+          const innerRadius = size * 0.25
+          for (let i = 0; i < 5; i++) {
+            const outerAngle = (18 + i * 72) * Math.PI / 180
+            const innerAngle = (54 + i * 72) * Math.PI / 180
+            ctx.lineTo(cx + Math.cos(outerAngle) * outerRadius, cy - Math.sin(outerAngle) * outerRadius)
+            ctx.lineTo(cx + Math.cos(innerAngle) * innerRadius, cy - Math.sin(innerAngle) * innerRadius)
+          }
+          ctx.closePath()
+          ctx.fill()
         } else if (bitsType === "rounded") {
           const px = columnIndex * size
           const py = rowIndex * size
@@ -223,6 +256,130 @@ function App() {
     link.href = canvas.toDataURL("image/png")
     link.download = `QR-${Date.now()}.png`
     link.click()
+  }
+
+  const downloadSVG = () => {
+    if (!qrMatrix || qrMatrix.length === 0) return
+    const size = 30
+    const matrixSize = qrMatrix.length
+    const width = matrixSize * size
+    const height = matrixSize * size
+
+    let centerStart = -1
+    let centerEnd = -1
+    let logoZoneSize = 0
+    let logoImageData = ""
+
+    if (logoImageRef.current) {
+      const rawSize = Math.floor(matrixSize * 0.22)
+      logoZoneSize = rawSize % 2 === 0 ? rawSize + 1 : rawSize
+      if (logoZoneSize < 5) logoZoneSize = 5
+      const center = Math.floor(matrixSize / 2)
+      const halfZone = Math.floor(logoZoneSize / 2)
+      centerStart = center - halfZone
+      centerEnd = center + halfZone
+      
+      const canvas = document.createElement("canvas")
+      canvas.width = logoImageRef.current.width
+      canvas.height = logoImageRef.current.height
+      const c = canvas.getContext("2d")
+      c?.drawImage(logoImageRef.current, 0, 0)
+      logoImageData = canvas.toDataURL("image/png")
+    }
+
+    let elements = ""
+
+    qrMatrix.forEach((row, rowIndex) => {
+      row.forEach((value, columnIndex) => {
+        if (centerStart !== -1 && rowIndex >= centerStart && rowIndex <= centerEnd && columnIndex >= centerStart && columnIndex <= centerEnd) {
+          return
+        }
+
+        const isFilled = value === 3 || value === 5
+        if (!isFilled) return
+
+        const px = columnIndex * size
+        const py = rowIndex * size
+        const r = size / 2
+
+        if (bitsType === "circle") {
+          elements += `<circle cx="${px + r}" cy="${py + r}" r="${r}" fill="${blackCellsColor}" />`
+        } else if (bitsType === "dot") {
+          elements += `<circle cx="${px + r}" cy="${py + r}" r="${size * 0.35}" fill="${blackCellsColor}" />`
+        } else if (bitsType === "diamond") {
+          elements += `<polygon points="${px + r},${py} ${px + size},${py + r} ${px + r},${py + size} ${px},${py + r}" fill="${blackCellsColor}" />`
+        } else if (bitsType === "star") {
+          let pts = ""
+          for (let i = 0; i < 5; i++) {
+            const outerAngle = (18 + i * 72) * Math.PI / 180
+            const innerAngle = (54 + i * 72) * Math.PI / 180
+            pts += `${px + r + Math.cos(outerAngle) * r},${py + r - Math.sin(outerAngle) * r} `
+            pts += `${px + r + Math.cos(innerAngle) * (size*0.25)},${py + r - Math.sin(innerAngle) * (size*0.25)} `
+          }
+          elements += `<polygon points="${pts.trim()}" fill="${blackCellsColor}" />`
+        } else if (bitsType === "rounded") {
+          const isVal = (rIdx: number, cIdx: number) => {
+            if (rIdx < 0 || rIdx >= matrixSize || cIdx < 0 || cIdx >= matrixSize) return false
+            return qrMatrix[rIdx][cIdx] === 3 || qrMatrix[rIdx][cIdx] === 5
+          }
+          const topFilled = isVal(rowIndex - 1, columnIndex)
+          const bottomFilled = isVal(rowIndex + 1, columnIndex)
+          const leftFilled = isVal(rowIndex, columnIndex - 1)
+          const rightFilled = isVal(rowIndex, columnIndex + 1)
+
+          const trCurve = !topFilled && !rightFilled
+          const brCurve = !bottomFilled && !rightFilled
+          const blCurve = !bottomFilled && !leftFilled
+          const tlCurve = !topFilled && !leftFilled
+
+          let d = `M ${px + r} ${py} `
+          if (trCurve) d += `L ${px + size - r} ${py} A ${r} ${r} 0 0 1 ${px + size} ${py + r} `
+          else d += `L ${px + size} ${py} L ${px + size} ${py + r} `
+
+          if (brCurve) d += `L ${px + size} ${py + size - r} A ${r} ${r} 0 0 1 ${px + size - r} ${py + size} `
+          else d += `L ${px + size} ${py + size} L ${px + size - r} ${py + size} `
+
+          if (blCurve) d += `L ${px + r} ${py + size} A ${r} ${r} 0 0 1 ${px} ${py + size - r} `
+          else d += `L ${px} ${py + size} L ${px} ${py + size - r} `
+
+          if (tlCurve) d += `L ${px} ${py + r} A ${r} ${r} 0 0 1 ${px + r} ${py} `
+          else d += `L ${px} ${py} L ${px + r} ${py} `
+
+          elements += `<path d="${d}Z" fill="${blackCellsColor}" />`
+        } else {
+          elements += `<rect x="${px}" y="${py}" width="${size}" height="${size}" fill="${blackCellsColor}" />`
+        }
+      })
+    })
+
+    if (logoImageData) {
+      const logoModulePadding = 1
+      const availableModules = logoZoneSize - (logoModulePadding * 2)
+      const availableSizePx = availableModules * size
+      const centerX = width / 2
+      const centerY = height / 2
+      const imgW = logoImageRef.current!.width
+      const imgH = logoImageRef.current!.height
+      const aspectRatio = imgW / imgH
+      let drawWidth = availableSizePx
+      let drawHeight = availableSizePx
+      if (aspectRatio > 1) {
+        drawHeight = availableSizePx / aspectRatio
+      } else {
+        drawWidth = availableSizePx * aspectRatio
+      }
+      elements += `<image href="${logoImageData}" x="${centerX - drawWidth / 2}" y="${centerY - drawHeight / 2}" width="${drawWidth}" height="${drawHeight}" />`
+    }
+
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="${width}" height="${height}" fill="white"/>${elements}</svg>`
+    
+    const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const slink = document.createElement("a")
+    slink.href = url
+    slink.download = `QR-${Date.now()}.svg`
+    slink.click()
+    URL.revokeObjectURL(url)
   }
 
   const createQR = useCallback((text: string, correctionLevel: QRErrorCorrectionKey, mask: QRMask) => {
@@ -305,6 +462,9 @@ function App() {
                   <option value="square">Cuadrados</option>
                   <option value="circle">Círculos</option>
                   <option value="rounded">Redondeados</option>
+                  <option value="dot">Puntos</option>
+                  <option value="diamond">Diamantes</option>
+                  <option value="star">Estrellas</option>
                 </select>
               </div>
 
@@ -401,9 +561,14 @@ function App() {
           </div>
 
           {isGenerated && (
-            <button id="canva-button-download" onClick={downloadImage}>
-              Descargar PNG
-            </button>
+            <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '300px', margin: '0 auto' }}>
+              <button id="canva-button-download" onClick={downloadImage} style={{ maxWidth: '100%' }}>
+                PNG
+              </button>
+              <button id="canva-button-download" onClick={downloadSVG} style={{ maxWidth: '100%' }}>
+                SVG
+              </button>
+            </div>
           )}
         </section>
       </div>
