@@ -14,6 +14,10 @@ export interface SVGRenderOptions {
 const squarePath = (col: number, row: number, size: number) =>
   `M ${col * size} ${row * size} h ${size} v ${size} h ${-size} Z`
 
+/** See renderToCanvas.ts for rationale — only the 3 corner 8×8 regions. */
+const isInFinderRegion = (r: number, c: number, n: number) =>
+  (r <= 7 && c <= 7) || (r <= 7 && c >= n - 8) || (r >= n - 8 && c <= 7)
+
 /**
  * Builds an SVG string that is visually identical to the canvas preview.
  *
@@ -56,8 +60,7 @@ export function renderToSVG(opts: SVGRenderOptions): string {
 
       if (value % 2 === 0) return // light module
 
-      const isFunctionModule = value === 3
-      const useSquare        = !style.finderSafe && isFunctionModule
+      const useSquare = !style.finderSafe && value === 3 && isInFinderRegion(rowIndex, colIndex, matrixSize)
 
       const ctx = { row: rowIndex, col: colIndex, size, isDark }
       pathData += useSquare

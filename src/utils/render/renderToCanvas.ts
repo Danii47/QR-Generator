@@ -15,6 +15,15 @@ const squarePath = (col: number, row: number, size: number) =>
   `M ${col * size} ${row * size} h ${size} v ${size} h ${-size} Z`
 
 /**
+ * Returns true only for modules inside the three 8×8 finder-pattern corner
+ * regions (7×7 finder + 1-module separator).  Timing patterns, format info,
+ * alignment patterns and the dark module are NOT in these regions, so they
+ * will adopt the user-chosen style even when finderSafe=false.
+ */
+const isInFinderRegion = (r: number, c: number, n: number) =>
+  (r <= 7 && c <= 7) || (r <= 7 && c >= n - 8) || (r >= n - 8 && c <= 7)
+
+/**
  * Renders the QR matrix onto the given canvas element.
  * Returns without drawing if `canvas` is null.
  */
@@ -67,10 +76,11 @@ export function renderToCanvas(
 
       if (value % 2 === 0) return // light module — skip (background is white)
 
-      // value === 3  → function-pattern module (finder, alignment, timing)
+      // value === 3  → function-pattern module (finder, alignment, timing…)
       // value === 5  → data module
-      const isFunctionModule = value === 3
-      const useSquare = !style.finderSafe && isFunctionModule
+      // Only the three corner finder squares fall back to solid square;
+      // timing patterns, alignment patterns and format bits use the style.
+      const useSquare = !style.finderSafe && value === 3 && isInFinderRegion(rowIndex, colIndex, matrixSize)
 
       const ctx2d = { row: rowIndex, col: colIndex, size, isDark }
       pathData += useSquare
