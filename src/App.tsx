@@ -1,33 +1,42 @@
 import { useRef, useState, useEffect, useCallback } from "react"
 import "./App.css"
-import { createStartMatrix } from "./utils/functions/createStartMatrix"
-import { QRErrorCorrectionKey, QRMask, QRVersion, QRBitsType } from "./types/QRTypes"
+import { QRErrorCorrectionKey, QRMask, QRVersion, QRBitsType, QRMatrixType } from "./types/QRTypes"
 import { QR_INFORMATION } from "./utils/constants/QR_INFORMATION"
 import { TYPE_INFORMATION_DICTIONARY } from "./utils/constants/TYPE_INFORMATION_DICTIONARY"
-import { applyPattern } from "./utils/functions/applyPattern"
 import { stringToBinary } from "./utils/functions/stringToBinary"
 import { generateCorrectionErrorData } from "./utils/functions/generateCorrectionErrorData"
 import { COMPLETE_BYTES } from "./utils/constants/COMPLETE_BYTES"
 import { getQRVersion } from "./utils/functions/getQRVersion"
 import { getLengthBits } from "./utils/functions/getLengthBits"
 import { FINAL_BLOCK } from "./utils/constants/FINAL_BLOCK"
+import { buildQRMatrix } from "./utils/render/buildMatrix"
+import { renderToCanvasById } from "./utils/render/renderToCanvas"
+import { renderToSVGById } from "./utils/render/renderToSVG"
+import { QR_MODULE_STYLES } from "./utils/styles/moduleStyles"
 
 const MASKS: QRMask[] = ["000", "001", "010", "011", "100", "101", "110", "111"]
 
 function App() {
 
-  const textInputRef = useRef<HTMLInputElement>(null)
+  const textInputRef       = useRef<HTMLInputElement>(null)
   const correctionLevelRef = useRef<HTMLSelectElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const canvasRef          = useRef<HTMLCanvasElement>(null)
 
-  const [isGenerated, setIsGenerated] = useState(false)
+  const [isGenerated, setIsGenerated]       = useState(false)
   const [blackCellsColor, setBlackCellsColor] = useState("#000000")
-  const [bitsType, setBitsType] = useState<QRBitsType>("square")
+  const [bitsType, setBitsType]             = useState<QRBitsType>("square")
+  const [maskIndex, setMaskIndex]           = useState(0)
+  const [downloadFormat, setDownloadFormat] = useState<"png" | "svg">("png")
 
-  const [maskIndex, setMaskIndex] = useState(0)
+  const [logoFile, setLogoFile]     = useState<File | null>(null)
+  const logoImageRef                = useRef<HTMLImageElement | null>(null)
+  const logoDataUrlRef              = useRef<string | null>(null)
 
-  const [logoFile, setLogoFile] = useState<File | null>(null)
-  const logoImageRef = useRef<HTMLImageElement | null>(null)
+  // Holds the last generated matrix so re-renders triggered by style/color/
+  // mask changes can use it directly without re-encoding the QR data.
+  const matrixRef = useRef<QRMatrixType | null>(null)
+
+  // ── Logo handlers ──────────────────────────────────────────────────────────
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -36,14 +45,24 @@ function App() {
 
       const reader = new FileReader()
       reader.onload = (event) => {
+        const dataUrl = event.target?.result as string
+        logoDataUrlRef.current = dataUrl
+
         const img = new Image()
         img.onload = () => {
           logoImageRef.current = img
-          if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
-            createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[maskIndex])
+          if (isGenerated && matrixRef.current) {
+            renderToCanvasById(
+              canvasRef.current,
+              matrixRef.current,
+              bitsType,
+              blackCellsColor,
+              30,
+              logoImageRef.current,
+            )
           }
         }
-        img.src = event.target?.result as string
+        img.src = dataUrl
       }
       reader.readAsDataURL(file)
     }
@@ -51,13 +70,23 @@ function App() {
 
   const handleRemoveLogo = () => {
     setLogoFile(null)
-    logoImageRef.current = null
-    if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
+    logoImageRef.current  = null
+    logoDataUrlRef.current = null
+    if (isGenerated && matrixRef.current) {
       setTimeout(() => {
-        createQR(textInputRef.current!.value, correctionLevelRef.current!.value as QRErrorCorrectionKey, MASKS[maskIndex])
+        renderToCanvasById(
+          canvasRef.current,
+          matrixRef.current!,
+          bitsType,
+          blackCellsColor,
+          30,
+          null,
+        )
       }, 0)
     }
   }
+
+  // ── Mask navigation ────────────────────────────────────────────────────────
 
   const handlePrevMask = () => {
     setMaskIndex((prev) => (prev - 1 + MASKS.length) % MASKS.length)
@@ -67,214 +96,138 @@ function App() {
     setMaskIndex((prev) => (prev + 1) % MASKS.length)
   }
 
-  const fillNumber = useCallback((version: QRVersion, correctionLevel: QRErrorCorrectionKey, binaryString: string, currentMask: QRMask) => {
-    const COLORS: Record<number, string> = {
-      0: "white", // Empty
-      2: "white", // Finder cell
-      3: blackCellsColor, // Filled cell
-      4: "white", // White cell
-      5: blackCellsColor // Black cell
-    }
+  // ── Core QR generation ─────────────────────────────────────────────────────
 
-    const newQRMatrix = createStartMatrix(version, correctionLevel, currentMask)
-    let cont = false
+  /**
+   * Encodes `text`, builds the QR matrix and renders it to the canvas.
+   * Stores the resulting matrix in `matrixRef` so partial re-renders
+   * (style, colour, mask changes) can skip re-encoding.
+   */
+  const createQR = useCallback((
+    text: string,
+    correctionLevel: QRErrorCorrectionKey,
+    mask: QRMask,
+  ) => {
+    const encodedType    = "byte"
+    const binaryText     = stringToBinary(text)
+    const QRVersion: QRVersion = getQRVersion(binaryText.length, correctionLevel, encodedType)
+    const textLengthBin  = text.length.toString(2).padStart(getLengthBits(QRVersion, encodedType), "0")
+    const codifiedData   = TYPE_INFORMATION_DICTIONARY[encodedType] + textLengthBin + binaryText + FINAL_BLOCK
 
-    for (let i = newQRMatrix[0].length - 1; i >= 0; i -= 2) {
-      if (i === 6) i--
-      const rowIndices = cont ? [...Array(newQRMatrix.length).keys()] : [...Array(newQRMatrix.length).keys()].reverse()
+    const { dataBits, numberOfBlocksInGroupOne, numberOfBlocksInGroupTwo } =
+      QR_INFORMATION[QRVersion].eccLevels[correctionLevel]
 
-      for (const j of rowIndices) {
-        for (let k = i; k > i - 2; k--) {
-          if (!binaryString) break
-          if (newQRMatrix[j][k] !== 0) continue
-          newQRMatrix[j][k] = binaryString.charAt(0) === "0" ? 4 : 5
-          binaryString = binaryString.substring(1)
-        }
-      }
-      cont = !cont
-    }
-
-    applyPattern(newQRMatrix, currentMask)
-
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    setIsGenerated(true)
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const pixelSize = 30
-    const size = pixelSize
-    const matrixSize = newQRMatrix.length
-
-    canvas.width = matrixSize * size
-    canvas.height = matrixSize * size
-
-    ctx.fillStyle = "white"
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-    let logoZoneSize = 0
-    let centerStart = 0
-    let centerEnd = 0
-
-    if (logoImageRef.current) {
-      const rawSize = Math.floor(matrixSize * 0.22)
-      logoZoneSize = rawSize % 2 === 0 ? rawSize + 1 : rawSize
-
-      if (logoZoneSize < 5) logoZoneSize = 5
-
-      const center = Math.floor(matrixSize / 2)
-      const halfZone = Math.floor(logoZoneSize / 2)
-
-      centerStart = center - halfZone
-      centerEnd = center + halfZone
-    }
-
-    newQRMatrix.forEach((row, rowIndex) => {
-      row.forEach((value, columnIndex) => {
-
-        if (logoImageRef.current) {
-          if (rowIndex >= centerStart && rowIndex <= centerEnd && columnIndex >= centerStart && columnIndex <= centerEnd) {
-            return
-          }
-        }
-
-        ctx.fillStyle = COLORS[value]
-        if (bitsType === "circle") {
-          ctx.beginPath()
-          ctx.arc(columnIndex * size + (size / 2), rowIndex * size + (size / 2), size / 2, 0, 2 * Math.PI)
-          ctx.fill()
-          ctx.closePath()
-        } else if (bitsType === "rounded") {
-          const px = columnIndex * size
-          const py = rowIndex * size
-          const radius = size / 2
-          ctx.beginPath()
-          ctx.moveTo(px + radius, py)
-
-          if ((newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (!newQRMatrix[rowIndex - 1] && !newQRMatrix[rowIndex][columnIndex + 1]) || (!newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex + 1])) {
-            ctx.arcTo(px + size, py, px + size, py + size, radius)
-          } else {
-            ctx.lineTo(px + size, py)
-            ctx.lineTo(px + size, py + radius)
-          }
-
-          if ((newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (!newQRMatrix[rowIndex + 1] && !newQRMatrix[rowIndex][columnIndex + 1]) || (!newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex][columnIndex + 1] % 2 === 0) || (newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex + 1])) {
-            ctx.arcTo(px + size, py + size, px, py + size, radius)
-          } else {
-            ctx.lineTo(px + size, py + size)
-            ctx.lineTo(px + radius, py + size)
-          }
-
-          if ((newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (!newQRMatrix[rowIndex + 1] && !newQRMatrix[rowIndex][columnIndex - 1]) || (!newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (newQRMatrix[rowIndex + 1] && newQRMatrix[rowIndex + 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex - 1])) {
-            ctx.arcTo(px, py + size, px, py, radius)
-          } else {
-            ctx.lineTo(px, py + size)
-            ctx.lineTo(px, py + radius)
-          }
-
-          if ((newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (!newQRMatrix[rowIndex - 1] && !newQRMatrix[rowIndex][columnIndex - 1]) || (!newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex][columnIndex - 1] % 2 === 0) || (newQRMatrix[rowIndex - 1] && newQRMatrix[rowIndex - 1][columnIndex] % 2 === 0 && !newQRMatrix[rowIndex][columnIndex - 1])) {
-            ctx.arcTo(px, py, px + radius, py, radius)
-          } else {
-            ctx.lineTo(px, py)
-            ctx.lineTo(px + radius, py)
-          }
-
-          ctx.closePath()
-          ctx.fill()
-        } else {
-          ctx.fillRect(columnIndex * size, rowIndex * size, size, size)
-        }
-      })
-    })
-
-    if (logoImageRef.current) {
-      const img = logoImageRef.current
-      const logoModulePadding = 1
-      const availableModules = logoZoneSize - (logoModulePadding * 2)
-      const availableSizePx = availableModules * size
-      const centerX = (canvas.width / 2)
-      const centerY = (canvas.height / 2)
-      const aspectRatio = img.width / img.height
-      let drawWidth = availableSizePx
-      let drawHeight = availableSizePx
-
-      if (aspectRatio > 1) {
-        drawHeight = availableSizePx / aspectRatio
-      } else {
-        drawWidth = availableSizePx * aspectRatio
-      }
-
-      ctx.drawImage(
-        img,
-        centerX - (drawWidth / 2),
-        centerY - (drawHeight / 2),
-        drawWidth,
-        drawHeight
-      )
-    }
-  }, [bitsType, blackCellsColor])
-
-  const downloadImage = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const link = document.createElement("a")
-    link.href = canvas.toDataURL("image/png")
-    link.download = `QR-${Date.now()}.png`
-    link.click()
-  }
-
-  const createQR = useCallback((text: string, correctionLevel: QRErrorCorrectionKey, mask: QRMask) => {
-    const encodedType = "byte"
-    const binaryText = stringToBinary(text)
-    const QRVersion = getQRVersion(binaryText.length, correctionLevel, encodedType)
-    const textLengthBinary = text.length.toString(2).padStart(getLengthBits(QRVersion, encodedType), "0")
-    const codifiedData = TYPE_INFORMATION_DICTIONARY[encodedType] + textLengthBinary + binaryText + FINAL_BLOCK
-    const { dataBits, numberOfBlocksInGroupOne, numberOfBlocksInGroupTwo } = QR_INFORMATION[QRVersion].eccLevels[correctionLevel]
     const totalDataString = codifiedData.padEnd(dataBits, COMPLETE_BYTES)
+    const totalBlocks     = numberOfBlocksInGroupOne + numberOfBlocksInGroupTwo
+    const dataBlocks      = new Array(totalBlocks)
+    const errorBlocks     = new Array(totalBlocks)
+    const blockCapacity   = Math.floor(totalDataString.length / totalBlocks / 8) * 8
 
-    const dataBlocks = new Array(numberOfBlocksInGroupOne + numberOfBlocksInGroupTwo)
-    const errorBlocks = new Array(numberOfBlocksInGroupOne + numberOfBlocksInGroupTwo)
-    const blockCapacitieInGroupOne = Math.floor(totalDataString.length / dataBlocks.length / 8) * 8
-
-    for (let i = 0; i < dataBlocks.length; i++) {
-      const start = i * blockCapacitieInGroupOne + (i > numberOfBlocksInGroupOne ? 8 * (i - numberOfBlocksInGroupOne) : 0)
-      const end = (i + 1) * blockCapacitieInGroupOne + (i >= numberOfBlocksInGroupOne ? 8 * (i - numberOfBlocksInGroupOne + 1) : 0)
-      dataBlocks[i] = totalDataString.substring(start, end)
+    for (let i = 0; i < totalBlocks; i++) {
+      const start = i * blockCapacity + (i > numberOfBlocksInGroupOne ? 8 * (i - numberOfBlocksInGroupOne) : 0)
+      const end   = (i + 1) * blockCapacity + (i >= numberOfBlocksInGroupOne ? 8 * (i - numberOfBlocksInGroupOne + 1) : 0)
+      dataBlocks[i]  = totalDataString.substring(start, end)
       errorBlocks[i] = generateCorrectionErrorData(QRVersion, correctionLevel, dataBlocks[i]).match(/.{1,8}/g)
-      dataBlocks[i] = dataBlocks[i].match(/.{1,8}/g)
+      dataBlocks[i]  = dataBlocks[i].match(/.{1,8}/g)
     }
 
-    let dataAndCorrectionErrorString = ""
+    let bitString = ""
     for (let i = 0; i < dataBlocks[dataBlocks.length - 1].length; i++) {
       for (let j = 0; j < dataBlocks.length; j++) {
-        if (dataBlocks[j][i] !== undefined)
-          dataAndCorrectionErrorString += dataBlocks[j][i]
+        if (dataBlocks[j][i] !== undefined) bitString += dataBlocks[j][i]
       }
     }
     for (let i = 0; i < errorBlocks[0].length; i++) {
       for (let j = 0; j < errorBlocks.length; j++) {
-        dataAndCorrectionErrorString += errorBlocks[j][i]
+        bitString += errorBlocks[j][i]
       }
     }
 
-    fillNumber(QRVersion, correctionLevel, dataAndCorrectionErrorString, mask)
-  }, [fillNumber])
+    const matrix = buildQRMatrix(QRVersion, correctionLevel, bitString, mask)
+    matrixRef.current = matrix
+    setIsGenerated(true)
+
+    renderToCanvasById(
+      canvasRef.current,
+      matrix,
+      bitsType,
+      blackCellsColor,
+      30,
+      logoImageRef.current,
+    )
+  }, [bitsType, blackCellsColor])
+
+  // ── Re-render when style, colour or mask changes ───────────────────────────
 
   useEffect(() => {
-    if (isGenerated && textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
-      createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[maskIndex])
+    if (isGenerated && matrixRef.current) {
+      renderToCanvasById(
+        canvasRef.current,
+        matrixRef.current,
+        bitsType,
+        blackCellsColor,
+        30,
+        logoImageRef.current,
+      )
+    }
+  }, [bitsType, blackCellsColor, isGenerated])
+
+  useEffect(() => {
+    if (isGenerated && textInputRef.current?.value && correctionLevelRef.current) {
+      createQR(
+        textInputRef.current.value,
+        correctionLevelRef.current.value as QRErrorCorrectionKey,
+        MASKS[maskIndex],
+      )
     }
   }, [maskIndex, createQR, isGenerated])
 
+  // ── Submit ─────────────────────────────────────────────────────────────────
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (textInputRef.current && textInputRef.current.value && correctionLevelRef.current) {
+    if (textInputRef.current?.value && correctionLevelRef.current) {
       setMaskIndex(0)
-      createQR(textInputRef.current.value, correctionLevelRef.current.value as QRErrorCorrectionKey, MASKS[0])
+      createQR(
+        textInputRef.current.value,
+        correctionLevelRef.current.value as QRErrorCorrectionKey,
+        MASKS[0],
+      )
     }
   }
+
+  // ── Download ───────────────────────────────────────────────────────────────
+
+  const handleDownload = () => {
+    if (downloadFormat === "png") {
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const link      = document.createElement("a")
+      link.href       = canvas.toDataURL("image/png")
+      link.download   = `QR-${Date.now()}.png`
+      link.click()
+      return
+    }
+
+    // SVG export — re-uses the exact same buildPath functions as the canvas
+    if (!matrixRef.current) return
+    const svgString = renderToSVGById(
+      matrixRef.current,
+      bitsType,
+      blackCellsColor,
+      30,
+      logoDataUrlRef.current,
+    )
+    const blob  = new Blob([svgString], { type: "image/svg+xml" })
+    const url   = URL.createObjectURL(blob)
+    const link  = document.createElement("a")
+    link.href   = url
+    link.download = `QR-${Date.now()}.svg`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div id="main-wrapper">
@@ -301,10 +254,16 @@ function App() {
             <div className="options-row">
               <div className="input-group">
                 <label htmlFor="qr-bits-type">Estilo</label>
-                <select id="qr-bits-type" onChange={(event) => setBitsType(event.target.value as QRBitsType)}>
-                  <option value="square">Cuadrados</option>
-                  <option value="circle">Círculos</option>
-                  <option value="rounded">Redondeados</option>
+                {/* The <select> is auto-populated from the style registry —
+                    no code change needed when adding a new style. */}
+                <select
+                  id="qr-bits-type"
+                  value={bitsType}
+                  onChange={(e) => setBitsType(e.target.value as QRBitsType)}
+                >
+                  {QR_MODULE_STYLES.map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
                 </select>
               </div>
 
@@ -361,7 +320,12 @@ function App() {
               <label htmlFor="select-color-1">Color de Puntos</label>
               <div className="color-input-wrapper">
                 <div className="color-preview" style={{ backgroundColor: blackCellsColor }}></div>
-                <input id="select-color-1" type="color" value={blackCellsColor} onChange={(event) => setBlackCellsColor(event.target.value)} />
+                <input
+                  id="select-color-1"
+                  type="color"
+                  value={blackCellsColor}
+                  onChange={(e) => setBlackCellsColor(e.target.value)}
+                />
                 <span className="color-value">{blackCellsColor.toUpperCase()}</span>
               </div>
             </div>
@@ -401,9 +365,19 @@ function App() {
           </div>
 
           {isGenerated && (
-            <button id="canva-button-download" onClick={downloadImage}>
-              Descargar PNG
-            </button>
+            <div className="download-row">
+              <select
+                className="download-format-select"
+                value={downloadFormat}
+                onChange={(e) => setDownloadFormat(e.target.value as "png" | "svg")}
+              >
+                <option value="png">PNG</option>
+                <option value="svg">SVG</option>
+              </select>
+              <button id="canva-button-download" onClick={handleDownload}>
+                Descargar {downloadFormat.toUpperCase()}
+              </button>
+            </div>
           )}
         </section>
       </div>

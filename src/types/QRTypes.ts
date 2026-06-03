@@ -27,4 +27,5 @@ type QRMatrixCell = 0 | 2 | 3 | 4 | 5
 
 export type QRMatrixType = QRMatrixCell[][]
 
-export type QRBitsType = "square" | "circle" | "rounded"
+/** Style identifier — the source of truth is the QR_MODULE_STYLES registry. */
+export type QRBitsType = string
